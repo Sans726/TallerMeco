@@ -1,0 +1,10 @@
+.env
+backups/
+**/target/
+**/node_modules/
+**/dist/
+.idea/
+.local/
+prototype/dist/
+backend/src/main/resources/static/
+**/*.tsbuildinfo
