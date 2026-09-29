@@ -16,9 +16,12 @@ public class Actor {
  public long employee(){return Store.number(db.one("SELECT id FROM employee WHERE user_id=? AND active=true",id()).get("id"));}
  public Map<String,Object> profile(){
   var u=new LinkedHashMap<>(user()); u.remove("version");
-  u.put("role",is("ADMIN")?"ADMIN":is("MECHANIC")?"MECHANIC":"CLIENT");
+  var roles=List.of("ADMIN","RECEPTIONIST","MECHANIC","CLIENT").stream().filter(this::is).toList();
+  if(roles.isEmpty())throw new AccessDeniedException("La cuenta no tiene un rol admitido");
+  u.put("role",roles.getFirst());
+  u.put("roles",roles);
   var names=db.list("SELECT full_name,phone FROM customer WHERE user_id=? UNION ALL SELECT full_name,NULL FROM employee WHERE user_id=?",id(),id());
-  u.put("name",names.isEmpty()?"Administrador":names.getFirst().get("full_name"));
+  u.put("name",names.isEmpty()?u.get("email"):names.getFirst().get("full_name"));
   u.put("phone",names.isEmpty()?"":names.getFirst().get("phone")); return u;
  }
 }

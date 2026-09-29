@@ -52,9 +52,9 @@ public class IdentityService {
   audit.record(id,"PASSWORD_RESET","user",id,Map.of());
  }
  @Transactional public long staff(String email,String password,String name,String role,long actor){
-  Store.require(Set.of("ADMIN","MECHANIC").contains(role),"Rol inválido");
+  Store.require(Set.of("ADMIN","RECEPTIONIST","MECHANIC").contains(role),"Rol inválido");
   long id=db.id("INSERT INTO app_user(email,password_hash) VALUES (?,?)",email.trim().toLowerCase(Locale.ROOT),encoder.encode(password));
-  db.update("INSERT INTO user_role VALUES (?,?)",id,role);db.update("INSERT INTO employee(user_id,full_name,job_title) VALUES (?,?,?)",id,name,role.equals("ADMIN")?"Administración":"Mecánica");
+  db.update("INSERT INTO user_role VALUES (?,?)",id,role);db.update("INSERT INTO employee(user_id,full_name,job_title) VALUES (?,?,?)",id,name,switch(role){case "ADMIN"->"Administración";case "RECEPTIONIST"->"Recepción";default->"Mecánica";});
   audit.record(actor==0?id:actor,"STAFF_CREATED","user",id,Map.of("role",role));return id;
  }
  @Transactional public void staffAccess(long userId,boolean enabled,long actor){

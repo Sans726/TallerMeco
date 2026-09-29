@@ -20,7 +20,8 @@ let loaded=false
 router.beforeEach(async to=>{if(!loaded){try{session.user=await api('/auth/me')}catch{}loaded=true;session.loading=false}
  const publicRoute=['/login','/register','/forgot','/reset'].includes(to.path)
  if(!publicRoute&&!session.user)return '/login'
- if(session.user&&to.path==='/login')return '/'
+ if(session.user&&to.path==='/login')return session.user.role==='RECEPTIONIST'?'/account':'/'
+ if(session.user?.role==='RECEPTIONIST'&&!publicRoute&&to.path!=='/account')return '/account'
  if(session.user?.role!=='ADMIN'&&['/customers','/employees','/reports','/audit'].includes(to.path))return '/'
  if(session.user?.role==='CLIENT'&&to.path==='/inventory')return '/'
 })

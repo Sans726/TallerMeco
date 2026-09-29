@@ -1,29 +1,86 @@
 import { reactive } from 'vue'
-import {demoApi,demoLogin,demoUser} from './demo'
-export const isDemo=import.meta.env.VITE_DEMO==='true'
+
+export const isDemo = import.meta.env.VITE_DEMO === 'true'
 export type Row = Record<string, any>
-export const session = reactive<{user:Row|null;loading:boolean}>({user:null,loading:true})
-let csrf:{token:string;header:string}|null=null
-export async function csrfRefresh(){const r=await fetch('/api/auth/csrf');csrf=await r.json()}
-export async function api<T=any>(path:string,method='GET',body?:unknown):Promise<T>{
- if(isDemo)return demoApi(path,method,body)
- if(!csrf && method!=='GET') await csrfRefresh()
- const headers:Record<string,string>={}
- if(method!=='GET' && csrf)headers[csrf.header]=csrf.token
- if(body!==undefined)headers['Content-Type']='application/json'
- const r=await fetch('/api'+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)})
- if(!r.ok){let message='No se pudo completar la operación';try{message=(await r.json()).message||message}catch{}
-  if(r.status===401 && path!=='/auth/me'){session.user=null;location.hash='/login'}
-  throw new Error(message)
- }
- return r.status===204||r.headers.get('content-length')==='0'?undefined as T:await r.text().then(t=>t?JSON.parse(t):undefined)
+export const session = reactive<{ user: Row | null; loading: boolean }>({ user: null, loading: true })
+let csrf: { token: string; header: string } | null = null
+
+function clearSession() {
+  session.user = null
+  csrf = null
 }
-export async function login(email:string,password:string){if(isDemo){demoLogin(email);session.user=demoUser;return;}await csrfRefresh();const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',[csrf!.header]:csrf!.token},body:new URLSearchParams({email,password})});if(!r.ok){let m='No se pudo iniciar sesión';try{m=(await r.json()).message}catch{}throw new Error(m)}await csrfRefresh();session.user=await api('/auth/me')}
-export async function logout(){await api('/auth/logout','POST');session.user=null;csrf=null;location.hash='/login'}
+
+async function errorMessage(response: Response, fallback: string) {
+  try { return (await response.json()).message || fallback } catch { return fallback }
+}
+
+export async function csrfRefresh() {
+  const response = await fetch('/api/auth/csrf', { credentials: 'same-origin', cache: 'no-store' })
+  if (!response.ok) throw new Error(await errorMessage(response, 'No se pudo iniciar una sesión segura'))
+  csrf = await response.json()
+}
+
+export async function api<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  if (import.meta.env.VITE_DEMO === 'true') return (await import('./demo')).demoApi(path, method, body)
+  if (!csrf && method !== 'GET') await csrfRefresh()
+  const headers: Record<string, string> = {}
+  if (method !== 'GET' && csrf) headers[csrf.header] = csrf.token
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const response = await fetch('/api' + path, {
+    method, headers, credentials: 'same-origin', cache: 'no-store',
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearSession()
+      if (path !== '/auth/me') location.hash = '/login'
+    }
+    throw new Error(await errorMessage(response, 'No se pudo completar la operación'))
+  }
+  const text = await response.text()
+  return text ? JSON.parse(text) : undefined as T
+}
+
+export async function login(email: string, password: string) {
+  if (import.meta.env.VITE_DEMO === 'true') {
+    const demo = await import('./demo')
+    demo.demoLogin(email)
+    session.user = demo.demoUser
+    return
+  }
+  clearSession()
+  await csrfRefresh()
+  const token = csrf!
+  const response = await fetch('/api/auth/login', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', [token.header]: token.token },
+    body: new URLSearchParams({ email: email.trim(), password }),
+  })
+  if (!response.ok) throw new Error(await errorMessage(response, 'No se pudo iniciar sesión'))
+  // Spring rotates both the session id and CSRF token on successful authentication.
+  await csrfRefresh()
+  session.user = await api('/auth/me')
+}
+
+export async function logout() {
+  try {
+    if (!isDemo) await csrfRefresh()
+    await api('/auth/logout', 'POST')
+    clearSession()
+    location.hash = '/login'
+  } catch (error) {
+    notify(error instanceof Error ? error.message : 'No se pudo cerrar la sesión', 'error')
+  }
+}
+
+export async function resetDemo() {
+  if (import.meta.env.VITE_DEMO === 'true') (await import('./demo')).resetDemo()
+}
+
 export const money=(v:unknown)=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(v||0))
 export const date=(v:unknown)=>v?new Date(String(v).replace(' ','T')+(String(v).includes('Z')||String(v).includes('+')?'':'Z')).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—'
 export const statuses:Record<string,string>={RECEIVED:'Recibido',DIAGNOSIS:'En diagnóstico',AWAITING_APPROVAL:'Por autorizar',IN_PROGRESS:'En reparación',READY:'Listo para entrega',DELIVERED:'Entregado',CANCELLED:'Cancelado',PENDING:'Pendiente',DONE:'Terminado'}
-export const roles:Record<string,string>={ADMIN:'Administración',MECHANIC:'Mecánico',CLIENT:'Cliente'}
+export const roles:Record<string,string>={ADMIN:'Administración',RECEPTIONIST:'Recepción',MECHANIC:'Mecánico',CLIENT:'Cliente'}
 export const alert=reactive({message:'',type:'success'})
 let timer:ReturnType<typeof setTimeout>
 export function notify(message:string,type='success'){alert.message=message;alert.type=type;clearTimeout(timer);timer=setTimeout(()=>alert.message='',6000)}
