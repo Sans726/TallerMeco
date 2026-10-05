@@ -1,5 +1,19 @@
 # TallerMeco — Fase 2
 
+> **Documento de alcance e historial.** Las secciones de arquitectura, autenticación y clientes describen los objetivos y criterios definidos para esta fase. Para el avance vigente, usa el [estado del proyecto](estado-del-proyecto.md).
+
+## Avance documentado
+
+| Entregable de Fase 2 | Estado actual | Evidencia |
+|---|---|---|
+| Autenticación, sesiones y roles | ✅ Implementado en código | `backend/src/main/java/mx/tallermeco/config/SecurityConfig.java` y módulo `identity` |
+| Alta, consulta, edición y duplicados de clientes | ✅ Implementado en código | Módulo `backend/src/main/java/mx/tallermeco/customer/` |
+| Repository de clientes y facade del frontend | ✅ Implementado en código | `CustomerRepository.java` y `frontend/src/modules/customers/facade/` |
+| Fotografía de clientes y perfil | ✅ Implementado en código | Servicios de foto de clientes y cuenta |
+| Configuración de empresa/taller | 🟡 API disponible; falta interfaz inicial | `POST /api/workshops/setup` |
+| Diagramas técnicos | ✅ Disponibles | SVG en `docs/diagrams/` |
+| Pruebas | 🟡 Pruebas presentes; consultar fecha de ejecución | `backend/src/test/`, `tests/` y registro de revisión visual al final de este documento |
+
 ## 1. Objetivo de la fase
 
 La Fase 2 tiene como objetivo convertir el prototipo actual de TallerMeco en una aplicación funcional con autenticación real, persistencia en base de datos, control de roles, servicios RESTful, arquitectura modular y los patrones de diseño solicitados.
@@ -22,31 +36,9 @@ La Fase 2 tiene como objetivo convertir el prototipo actual de TallerMeco en una
 
 # 2. Estado actual del proyecto
 
-| Elemento | Estado | Observación |
-|---|---|---|
-| Proyecto VueJS | ✅ Terminado | Existe frontend funcional. |
-| Proyecto Spring Boot | ✅ Terminado | Backend base creado. |
-| MariaDB | 🟡 Parcial | Existe estructura previa, pero falta consolidar la integración definitiva. |
-| Servicios REST | 🟡 Parcial | Existen endpoints, pero requieren reorganización modular. |
-| Spring Security | 🟡 Parcial | Existe configuración inicial, pero el flujo completo de autenticación debe terminarse y probarse. |
-| Login real | ❌ Pendiente | El prototipo permite seleccionar manualmente un usuario/rol. |
-| Sesiones reales | ❌ Pendiente | La identidad del usuario debe provenir de una sesión autenticada. |
-| Roles reales | ❌ Pendiente | El usuario no debe seleccionar manualmente su rol. |
-| Rol ADMIN | 🟡 Parcial | Está contemplado, pero debe integrarse con autenticación real. |
-| Rol RECEPTIONIST | ❌ Pendiente | Debe agregarse. |
-| Registro real de clientes | ❌ Pendiente | Se implementará en esta fase. |
-| Repository Pattern | ❌ Pendiente | Actualmente existe acceso SQL mediante `Store`. |
-| Facade Pattern en VueJS | ❌ Pendiente | Las vistas consumen directamente funciones generales de API. |
-| Backend modular | 🟡 Parcial | Existen dominios, pero falta separar Controller, Service, Repository y DTO. |
-| Frontend modular | 🟡 Parcial | Existen views y componentes, pero falta separar módulos y Facades. |
-| Validación de duplicados | ❌ Pendiente | Debe impedirse cualquier doble registro de cliente. |
-| Asociación cliente-taller | ❌ Pendiente | Debe prepararse para múltiples talleres de una empresa. |
-| Fotografía del cliente | ❌ Pendiente | Debe implementarse carga y almacenamiento seguro. |
-| OWASP | 🟡 Parcial | Ya existen controles de seguridad, pero deben formalizarse y probarse. |
-| Datos demostrativos | ⚠️ Temporal | Deben eliminarse del funcionamiento real. |
-| Base de datos limpia | ❌ Pendiente | El sistema final no deberá depender de datos precargados de demostración. |
+La tabla de esta sección en la versión inicial era una línea base previa a la implementación. Para evitar mantener dos reportes distintos, el avance actual, los pendientes y la evidencia por módulo se mantienen en el [reporte de estado](estado-del-proyecto.md).
 
----
+Las secciones siguientes conservan el alcance, las reglas de negocio y los criterios de diseño definidos para la Fase 2. Deben leerse como especificación de la fase y registro de decisiones; una frase en futuro o pendiente no necesariamente representa el estado actual del código.
 
 # 3. Arquitectura objetivo
 
@@ -487,3 +479,27 @@ Cliente registrado
 ```
 
 El resultado final será un cliente único, persistido correctamente y asociado al taller correspondiente.
+
+
+## Ajuste visual — 29 de septiembre de 2026
+
+| Área | Cambio |
+|---|---|
+| Interfaz compartida | Tipografía, contraste, espaciado, tarjetas, tablas, botones y modales coherentes. |
+| Clientes | Directorio con búsqueda y estados de carga/error; ficha agrupada; formulario por secciones con fotografía independiente. |
+| Móvil | Formulario de una columna, directorio en tarjetas y menú lateral desplazable. |
+| Interacción | Estados de carga, error y reintento en listados y reportes. Transiciones de página, ficha y notificaciones; animaciones desactivadas con `prefers-reduced-motion`. |
+| Accesibilidad | Foco visible, acceso directo al contenido, menú móvil con recorrido de teclado y Escape, etiquetas y control de contraseña con iconos. |
+| Verificación | Compilación Vue/TypeScript y Spring; revisión en navegador local de login, resumen, clientes, ficha, edición, preview local, órdenes, inventario, reportes y cuenta. Escape y retorno del foco en modales; recorrido Tab/Shift+Tab y cierre del menú móvil. `git diff --check` sin errores. |
+
+La revisión visual inicial no certificó el alta completa de clientes; en ese momento no había talleres configurados. Se corrigieron los permisos locales de SELECT sobre workshop y customer_workshop para cargar esas vistas.
+
+
+## Taller, recepción y perfil — 29 de septiembre de 2026
+
+- Creado por petición del usuario **Taller del Titan Camara**, con empresa inicial del mismo nombre. No se agregaron clientes ni empleados ficticios a la base real.
+- Recepción puede consultar, registrar y editar clientes y sus fotografías. Vue permite estas rutas y Equipo ofrece el rol Recepcionista. Las operaciones administrativas y los métodos de clientes no concedidos a recepción quedan reservados a ADMIN en Spring Security.
+- V5 añade datos de cuenta independientes: nombre visible, teléfono, nacimiento, descripción y referencia de foto. `/api/auth/me` los devuelve; `PUT /api/account` solo actualiza el perfil propio. Correo y permisos no son editables desde ese formulario.
+- `/api/account/photo`: POST multipart, GET privado y DELETE propios. JPG/PNG, máximo 15 MB/16 megapíxeles, recodificación PNG sin metadatos, almacenamiento fuera de los recursos públicos y auditoría. Reemplazo/eliminación limpia archivos después del commit; un rollback elimina la nueva foto.
+- `scripts/db-grants-p2.py` aplica SELECT/INSERT a company, workshop y customer_workshop para la cuenta de ejecución local tras V4.
+- Verificación: compilación offline y pruebas HTTP con MariaDB temporal (recepción crea/edita, duplicado 409, permisos 403, perfil persistente, foto privada, reemplazo/eliminación, imagen inválida y CSRF). Las bases temporales y sus archivos se eliminan al terminar.

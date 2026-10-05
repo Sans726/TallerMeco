@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "638d1f66-5683-4c9d-b5c3-93aae1bc2f6e",
+  "input": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/candidate.json",
+  "output": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/architecture.html"
+}

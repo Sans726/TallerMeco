@@ -40,6 +40,8 @@ class AuthenticationIntegrationTest {
         System.setProperty("app.bootstrap.password", "");
         System.setProperty("server.port", "0");
         System.setProperty("server.servlet.session.cookie.secure", "false");
+        var photoDir = java.nio.file.Files.createTempDirectory("tallermeco-profile-test-");
+        System.setProperty("app.profile-photo-dir", photoDir.toString());
         try (var context = org.springframework.boot.SpringApplication.run(mx.tallermeco.TallerApplication.class)) {
             var checks = new AuthenticationIntegrationTest();
             checks.port = ((org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext) context).getWebServer().getPort();
@@ -53,7 +55,13 @@ class AuthenticationIntegrationTest {
             checks.csrfIsRequiredForLoginAndLogoutAndLogoutInvalidatesSession();
             checks.changingDatabaseRoleInvalidatesCachedAuthorities();
             checks.disablingUserOrChangingPasswordVersionInvalidatesSession();
-            System.out.println("P2-01: 10 HTTP authentication checks PASSED against real MariaDB.");
+            checks.receptionistCanRegisterAndEditCustomersButCannotAdminister();
+            checks.profileDataAndPhotoArePrivateAndPersistent();
+            System.out.println("PASS: authentication, receptionist customer create/update, admin-only operations, profile persistence, photo upload/replace/remove, invalid uploads and CSRF.");
+        } finally {
+            try (var files = java.nio.file.Files.walk(photoDir)) {
+                for (var file : files.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(file);
+            }
         }
     }
 
@@ -61,7 +69,7 @@ class AuthenticationIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder passwords;
     @Autowired ObjectMapper json;
-    private static final String PASSWORD = "P2-01-test-only-password";
+    static final String PASSWORD = "P2-01-test-only-password";
 
     record Account(long id, String email, String name) {}
     Account account(String role, boolean enabled) {
@@ -189,5 +197,82 @@ class AuthenticationIntegrationTest {
         browser.csrf(); assertEquals(200, browser.login(account, PASSWORD).statusCode());
         jdbc.update("UPDATE app_user SET enabled=false WHERE id=?", account.id());
         assertEquals(401, browser.get("/api/auth/me").statusCode());
+    }
+
+    HttpResponse<String> request(Browser browser, String method, String path, Object body, boolean csrf) throws Exception {
+        var builder=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+path)).header("Content-Type","application/json");
+        if(csrf) builder.header(browser.header,browser.token);
+        return browser.client.send(builder.method(method,HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(),HttpResponse.BodyHandlers.ofString());
+    }
+    Browser authenticated(Account account) throws Exception {
+        var browser=new Browser();browser.csrf();assertEquals(200,browser.login(account,PASSWORD).statusCode());browser.csrf();return browser;
+    }
+    @Test void receptionistCanRegisterAndEditCustomersButCannotAdminister() throws Exception {
+        var admin=authenticated(account("ADMIN",true));
+        var setup=request(admin,"POST","/api/workshops/setup",Map.of("companyName","Empresa prueba","workshopName","Taller prueba"),true);
+        assertEquals(200,setup.statusCode(),setup.body());
+        long workshop=json.readTree(setup.body()).get("workshopId").asLong();
+        String email="recepcion-"+UUID.randomUUID()+"@example.invalid";
+        var created=request(admin,"POST","/api/employees",Map.of("email",email,"password",PASSWORD,"name","Recepción prueba","role","RECEPTIONIST"),true);
+        assertEquals(200,created.statusCode(),created.body());
+        long userId=json.readTree(created.body()).get("id").asLong();
+        assertEquals("RECEPTIONIST",jdbc.queryForObject("SELECT role_code FROM user_role WHERE user_id=?",String.class,userId));
+        var receptionist=authenticated(new Account(userId,email,"Recepción prueba"));
+        assertEquals(200,receptionist.get("/api/customers").statusCode());
+        assertEquals(200,receptionist.get("/api/workshops").statusCode());
+        var customer=new HashMap<String,Object>();customer.put("fullName","Cliente de prueba");customer.put("personalEmail","customer-"+UUID.randomUUID()+"@example.invalid");customer.put("personalPhone","5512345678");
+        var body=Map.of("customer",customer,"workshopId",workshop);
+        var creation=request(receptionist,"POST","/api/customers",body,true);
+        assertEquals(200,creation.statusCode(),creation.body());long id=json.readTree(creation.body()).get("id").asLong();
+        assertEquals(409,request(receptionist,"POST","/api/customers",body,true).statusCode());
+        customer.put("alias","Actualizado por recepción");
+        assertEquals(200,request(receptionist,"PUT","/api/customers/"+id,body,true).statusCode());
+        assertEquals("Actualizado por recepción",json.readTree(receptionist.get("/api/customers/"+id).body()).get("alias").asText());
+        assertEquals(403,request(receptionist,"DELETE","/api/customers/"+id,Map.of(),true).statusCode());
+        assertEquals(403,request(receptionist,"POST","/api/workshops/setup",Map.of(),true).statusCode());
+        assertEquals(403,request(receptionist,"POST","/api/employees",Map.of(),true).statusCode());
+        assertEquals(403,receptionist.get("/api/reports").statusCode());
+        for(String role:List.of("MECHANIC","CLIENT")) {
+            var other=authenticated(account(role,true));
+            assertEquals(403,request(other,"POST","/api/customers",body,true).statusCode());
+            assertEquals(403,request(other,"PUT","/api/customers/"+id,body,true).statusCode());
+        }
+    }
+    HttpResponse<String> upload(Browser browser, byte[] bytes, boolean csrf) throws Exception {
+        String boundary="test-profile-boundary";
+        var body=new java.io.ByteArrayOutputStream();
+        body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo.png\"\r\nContent-Type: image/png\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        body.write(bytes);body.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
+        var builder=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/account/photo")).header("Content-Type","multipart/form-data; boundary="+boundary);
+        if(csrf)builder.header(browser.header,browser.token);
+        return browser.client.send(builder.POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString());
+    }
+    @Test void profileDataAndPhotoArePrivateAndPersistent() throws Exception {
+        var owner=account("RECEPTIONIST",true);var browser=authenticated(owner);
+        var body=Map.of("name","Mi perfil actualizado","phone","5511112233","birthDate","1995-04-15","bio","Recepción del taller","role","ADMIN","id",999999,"email","changed@example.invalid");
+        assertEquals(200,request(browser,"PUT","/api/account",body,true).statusCode());
+        var fresh=authenticated(owner);var profile=json.readTree(fresh.get("/api/auth/me").body());
+        assertEquals("Mi perfil actualizado",profile.get("name").asText());
+        assertEquals("5511112233",profile.get("phone").asText());
+        assertEquals("1995-04-15",profile.get("birthDate").asText());
+        assertEquals("Recepción del taller",profile.get("bio").asText());
+        assertEquals("RECEPTIONIST",profile.get("role").asText());assertEquals(owner.email(),profile.get("email").asText());
+        assertEquals(400,request(fresh,"PUT","/api/account",Map.of("name","Nombre","birthDate","2999-01-01"),true).statusCode());
+        assertEquals(400,request(fresh,"PUT","/api/account",Map.of("name","Nombre","phone","letras"),true).statusCode());
+        assertEquals(403,request(fresh,"PUT","/api/account",body,false).statusCode());
+        assertEquals(400,upload(fresh,"not a real png".getBytes(StandardCharsets.UTF_8),true).statusCode());
+        var image=new java.awt.image.BufferedImage(30,30,java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var bytes=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(image,"png",bytes);
+        assertEquals(403,upload(fresh,bytes.toByteArray(),false).statusCode());
+        var result=upload(fresh,bytes.toByteArray(),true);assertEquals(200,result.statusCode(),result.body());
+        String first=json.readTree(result.body()).get("photoUrl").asText();
+        var photo=fresh.get(first);assertEquals(200,photo.statusCode());assertEquals("image/png",photo.headers().firstValue("content-type").orElse(""));
+        assertTrue(photo.headers().firstValue("cache-control").orElse("").contains("no-store"));
+        assertEquals(401,new Browser().get(first).statusCode());
+        var other=authenticated(account("CLIENT",true));assertEquals(404,other.get(first).statusCode());
+        result=upload(fresh,bytes.toByteArray(),true);assertEquals(200,result.statusCode());assertNotEquals(first,json.readTree(result.body()).get("photoUrl").asText());
+        assertEquals(200,request(fresh,"DELETE","/api/account/photo",Map.of(),true).statusCode());
+        assertEquals(404,fresh.get("/api/account/photo").statusCode());
+        assertTrue(json.readTree(fresh.get("/api/auth/me").body()).get("photoUrl").isNull());
     }
 }

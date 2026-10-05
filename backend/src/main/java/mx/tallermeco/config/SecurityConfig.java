@@ -47,8 +47,14 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/forgot", "/api/auth/reset").permitAll()
                 .requestMatchers("/api/auth/me", "/api/account", "/api/account/**")
                     .hasAnyRole("ADMIN", "RECEPTIONIST", "MECHANIC", "CLIENT")
-                .requestMatchers("/api/employees", "/api/employees/**", "/api/customers", "/api/customers/**", "/api/reports", "/api/audit").hasRole("ADMIN")
-                // Receptionist business permissions belong to the next task; do not inherit mechanic access.
+                .requestMatchers("/api/employees", "/api/employees/**", "/api/reports", "/api/audit").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/customers", "/api/customers/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers(HttpMethod.POST, "/api/customers", "/api/customers/*/photo").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers(HttpMethod.PUT, "/api/customers/*").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers("/api/customers", "/api/customers/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/workshops", "/api/workshops/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                .requestMatchers("/api/workshops", "/api/workshops/**").hasRole("ADMIN")
+                // Reception only manages customer registration; all other business routes keep their existing permissions.
                 .requestMatchers("/api/**").hasAnyRole("ADMIN", "MECHANIC", "CLIENT")
                 .anyRequest().permitAll())
             .requestCache(cache -> cache.requestCache(new NullRequestCache()))

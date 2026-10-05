@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "9b9a0309-6620-4ebc-90af-992033d2c4e6",
+  "input": "/home/sun/Projects/TallerMeco/docs/diagrams/customer-registration/candidate.json",
+  "output": "/home/sun/Projects/TallerMeco/docs/diagrams/customer-registration/customer-registration.html"
+}

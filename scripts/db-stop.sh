@@ -1,3 +1,4 @@
 #!/bin/sh
 set -eu
-systemctl --user stop tallermeco-db
+cd "$(dirname "$0")/.."
+podman compose -f infrastructure/podman/compose.yaml stop mariadb

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/candidate.json",
+    "sha256": "1425d40ab6ff132c74a271a01b6506f866a3b524ba7c6411185f72056f044991",
+    "bytes": 1373
+  },
+  "artifact": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/authentication.html",
+    "sha256": "c6830acc0cffbe2cc08b38a109a28cff446939fa58503f34debce19d73a3e1c2",
+    "bytes": 753091
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "skipped"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "Chrome or Chromium is unavailable. Set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/authentication.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome or Chromium executable and rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/authentication.finalize.json",
+    "summaryReceipt": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/authentication.finalize-summary.json",
+    "browserCheckReceipt": "/home/sun/Projects/TallerMeco/docs/diagrams/authentication/authentication.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T00:44:25.740Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 799
+}

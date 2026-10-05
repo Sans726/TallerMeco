@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/candidate.json",
+    "sha256": "6520c149edd83eeae01904f3d933e44fff48056a6ac8db4c7bac33c179ec5075",
+    "bytes": 1119
+  },
+  "artifact": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.html",
+    "sha256": "2d571c7160aa6229a03b82805907c137abaf70f0978eae9ab7219085982a20c4",
+    "bytes": 749348
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "fail"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/evidence-path-conflict",
+      "severity": "error",
+      "message": "browser-check will not replace the existing unowned evidence path \"/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.browser-check.json\".",
+      "subject": {
+        "artifact": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.html",
+        "evidencePath": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.browser-check.json"
+      },
+      "evidence": {
+        "reason": {
+          "code": "ownership-artifact-mismatch"
+        }
+      },
+      "supportedFixes": [
+        "move the conflicting file aside, or choose a separate --out-dir, then rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.finalize.json",
+    "summaryReceipt": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.finalize-summary.json",
+    "browserCheckReceipt": "/home/sun/Projects/TallerMeco/docs/diagrams/data-model/data-model.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T00:44:25.740Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 788
+}

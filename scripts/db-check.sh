@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-python3 tests/database.py
+podman exec tallermeco-db mariadb-admin --no-defaults ping

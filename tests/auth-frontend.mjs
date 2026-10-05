@@ -8,7 +8,6 @@ import test from 'node:test'
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const ts = require('typescript')
 let source = await readFile(new URL('../frontend/src/api.ts', import.meta.url), 'utf8')
-source = source.replaceAll("import.meta.env.VITE_DEMO", "'false'")
 source = source.replace("from 'vue'", `from '${pathToFileURL(require.resolve('vue/dist/vue.runtime.esm-bundler.js')).href}'`)
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
 for (const name of ['localStorage', 'sessionStorage']) {
@@ -24,7 +23,6 @@ await test('normal login trusts /auth/me and refreshes CSRF after authentication
   const replies = [response(200, { header: 'X-CSRF-TOKEN', token: 'before' }), response(200, { ok: true }), response(200, { header: 'X-CSRF-TOKEN', token: 'after' }), response(200, user)]
   globalThis.fetch = async (url, options) => { calls.push({ url, options }); return replies.shift() }
   await auth.login(' reception@example.invalid ', 'test-only-password')
-  assert.equal(auth.isDemo, false)
   assert.deepEqual(calls.map(c => c.url), ['/api/auth/csrf', '/api/auth/login', '/api/auth/csrf', '/api/auth/me'])
   assert.equal(calls[1].options.headers['X-CSRF-TOKEN'], 'before')
   assert.deepEqual([...calls[1].options.body.keys()], ['email', 'password'])
@@ -67,15 +65,12 @@ await test('CSRF fetch failure prevents credential submission', async () => {
   assert.equal(calls, 1)
 })
 
-await test('normal production JS does not contain demo identities or browser session storage', async () => {
+await test('production authentication does not use browser storage', async () => {
   const assets = resolve('backend/src/main/resources/static/assets')
   const files = (await readdir(assets)).filter(f => f.endsWith('.js'))
   assert.ok(files.length)
   const bundle = (await Promise.all(files.map(f => readFile(resolve(assets, f), 'utf8')))).join('\n')
-  for (const forbidden of ['tallermeco-prototype-v1', 'taller-demo-user', 'demoLogin', 'Ana Martínez', 'localStorage', 'sessionStorage']) {
+  for (const forbidden of ['localStorage', 'sessionStorage']) {
     assert.ok(!bundle.includes(forbidden), `Demo code leaked into normal bundle: ${forbidden}`)
   }
-  const loginView = await readFile(new URL('../frontend/src/views/Auth.vue', import.meta.url), 'utf8')
-  assert.ok(loginView.includes('v-if="isDemo" class="demo-access"'))
-  assert.ok(loginView.includes('v-if="!message&&!isDemo"'))
 })

@@ -1,0 +1,9 @@
+services:
+  mariadb:
+    image: docker.io/library/mariadb:12.3.2
+    container_name: tallermeco-db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ../../.local/mariadb:/var/lib/mysql

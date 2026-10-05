@@ -1,0 +1,1 @@
+export type Customer = { id?:number; fullName:string; alias?:string; alternativeContactName?:string; birthDate?:string; personalPhone?:string; workPhone?:string; personalEmail?:string; workEmail?:string; photoReference?:string; street?:string; neighborhood?:string; municipality?:string; state?:string; postalCode?:string }

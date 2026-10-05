@@ -1,86 +1,114 @@
-# Prototipo listo para explorar
-
-Abre **http://localhost:5173**. Entra con los botones **Administración**, **Mecánico** o **Cliente**, sin contraseña.
-
-```sh
-./scripts/prototype-start.sh
-./scripts/prototype-stop.sh
-```
-
-No descargan nada. El prototipo usa las dependencias ya instaladas. También hay una compilación estática en `prototype/dist/` generada por `cd frontend && npm run build:demo`.
-
-- Dashboard, órdenes, clientes, vehículos, equipo, inventario, cobros, reportes y bitácora.
-- Puedes crear órdenes y probar los formularios. Los cambios se guardan en el navegador (`localStorage`).
-- Datos de ejemplo ficticios. El modo demo **no tiene autenticación real ni conexión a MariaDB**; no usar información real.
-- Restablecer ejemplos: Mi cuenta → Restablecer datos de ejemplo.
-- El servidor solo escucha en loopback y no se inicia automáticamente al reiniciar la PC.
-- Pruebas del prototipo: `node --experimental-strip-types tests/prototype.mjs` y `cd frontend && npm run build:demo`.
-- V2 de base está escrita pero **no aplicada**. Sigue pendiente completar y probar Spring Boot, gestionar Flyway baseline V1 y conectar el frontend real. No lanzar el backend contra datos reales hasta concluir su revisión.
-
----
-
 # TallerMeco
 
-Monolito modular para un taller. Etapa actual: prototipo Vue funcional en modo local. MariaDB y esquema V1 probados. Código Spring Boot en desarrollo, todavía sin compilar ni conectar; descargas detenidas por petición del usuario.
+**Sistema web para administrar la operación de un taller mecánico.**
 
-## Stack decidido
+La aplicación combina una interfaz Vue con una API Spring Boot y una base de datos MariaDB. Este repositorio contiene el código, las migraciones, scripts de operación y documentación de diseño.
 
-- Java 21 LTS, Spring Boot, Maven, Spring Security, REST y Spring JDBC.
-- Vue 3, TypeScript, Vite, Vue Router y Tailwind CSS.
-- MariaDB nativo de esta PC; JDBC MariaDB. Flyway se integrará con el backend.
-- Caddy para HTTPS cuando despleguemos. No necesitamos Docker para desarrollar la base local.
+| Área | Tecnología |
+|---|---|
+| Interfaz | Vue 3 · TypeScript · Vite · Tailwind CSS |
+| API y reglas de negocio | Java 21 · Spring Boot · Spring Security |
+| Persistencia | MariaDB · Spring JDBC · Flyway |
+| Entorno local documentado | NixOS/Linux · Podman |
 
-Interfaz prevista: fondos neutros, acentos azul/teal, tipografía legible, navegación por rol, tablas con filtros, formularios cortos y estados con texto además de color. Diseño móvil, teclado, foco visible y contraste WCAG AA como criterios de aceptación. Tailwind sustituye Bootstrap para controlar la estética; no añadimos ambos.
+> **Progreso:** consulta [el estado del proyecto](docs/estado-del-proyecto.md) para ver los entregables, su estado y la evidencia en el código. El estado describe lo implementado en el repositorio; no representa una certificación de producción.
 
-## Base local
+## Avance del proyecto
 
-Se usa `/usr/sbin/mariadbd` instalado en la PC, con datos aislados en `.local/mariadb`. No es el servicio global `mariadb.service`. Corre como servicio de usuario `tallermeco-db`, sin sudo, en `127.0.0.1:3306`. No se inicia automáticamente al reiniciar la PC.
+| Módulo / entregable | Estado | Evidencia y siguiente hito |
+|---|---|---|
+| Inicio de sesión, sesiones y roles | ✅ Implementado | [Seguridad](backend/src/main/java/mx/tallermeco/config/SecurityConfig.java) · Mantener pruebas de permisos al ampliar flujos. |
+| Gestión de clientes | ✅ Implementado | [Módulo de clientes](backend/src/main/java/mx/tallermeco/customer/) · Alta, ficha, edición, validación de duplicados y fotografía. |
+| Empresa y primer taller | 🟡 Parcial | [API de configuración](backend/src/main/java/mx/tallermeco/customer/WorkshopSetupController.java) · Falta una pantalla administrativa de inicio. |
+| Vehículos y órdenes | 🟡 Base funcional | [API del taller](backend/src/main/java/mx/tallermeco/workshop/) · Completar y validar el recorrido hasta la entrega. |
+| Inventario, pagos y reportes | 🟡 Base funcional | [Inventario](backend/src/main/java/mx/tallermeco/inventory/) · Validar los recorridos integrales con datos controlados. |
+| Pruebas automatizadas | 🟡 Hay suites; no verificadas en esta actualización | [Pruebas disponibles](backend/src/test/) · Ejecutar y registrar resultado antes de la siguiente entrega. |
+| Alta desde cero de la base | 🟡 Procedimiento incompleto | [Detalle y pendiente](docs/estado-del-proyecto.md#resumen-de-avance) · Registrar el baseline de Flyway en el proceso inicial. |
 
-```sh
-./scripts/db-start.sh
-./scripts/db-check.sh
-./scripts/db-backup.sh
-./scripts/db-stop.sh
+Consulta el [reporte detallado de avance](docs/estado-del-proyecto.md) para ver criterios, evidencias enlazadas, próximos pasos y diagramas. **“Implementado” indica que el código existe; no significa que las pruebas se hayan ejecutado en esta actualización.**
+
+## Qué incluye
+
+- Inicio de sesión con sesión de servidor, roles y protección CSRF.
+- Registro, consulta, edición y fotografía de clientes.
+- Asociación de clientes con talleres y datos de empresa.
+- API y vistas para vehículos, órdenes de servicio, inventario y reportes.
+- Registro de pagos, movimientos de inventario, auditoría e historial.
+- Migraciones de base de datos versionadas y pruebas automatizadas para áreas de autenticación y clientes.
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    U[Personal del taller] --> V[Interfaz Vue]
+    V --> F[Cliente API y facades de módulo]
+    F --> S[API REST Spring Boot]
+    S --> SEC[Sesión, CSRF y autorización]
+    SEC --> B[Servicios de negocio]
+    B --> P[Repositorios, JDBC y Store]
+    P --> DB[(MariaDB)]
+    M[Flyway] --> DB
 ```
 
-Conexión para el backend:
+El módulo de clientes muestra la separación **vista → facade → API** en el frontend y **controller → service → repository → base de datos** en el backend. Otros módulos conservan acceso JDBC mediante `Store`; la tabla de progreso explica el alcance por área.
 
-- URL: `jdbc:mariadb://127.0.0.1:3306/tallermeco`
-- Usuario: `taller_app`
-- Contraseña: `DB_APP_PASSWORD` en `.env`.
+## Arranque en el entorno local preparado
 
-Usuario de migraciones: `taller_owner`, contraseña `DB_OWNER_PASSWORD`. Las credenciales son aleatorias, `.env` tiene permisos restringidos y está excluido de Git. El backend no utilizará el usuario administrativo. Cambiar `.env` no cambia las claves del servidor: requiere una rotación explícita.
+Los scripts están preparados para el entorno Linux de Camerabox, que ya cuenta con dependencias locales de Maven y Vue, Podman y configuración privada en `.env`. Se requieren Java 21, Node.js/npm y Podman Compose.
 
-Acceso administrativo local mediante autenticación del usuario del sistema:
+Para iniciar el entorno preparado:
 
 ```sh
-mariadb --no-defaults --socket="$PWD/.local/mariadb.sock" tallermeco
+./scripts/app-start.sh
 ```
 
-## Esquema
+El script inicia MariaDB, compila la interfaz, aplica las migraciones pendientes de Flyway y levanta Spring Boot. Abre [http://127.0.0.1:8080/#/login](http://127.0.0.1:8080/#/login).
 
-15 tablas en `backend/src/main/resources/db/migration/V1__core_schema.sql`. El arranque inicial se hizo con `python3 scripts/db-init.py`, que rehúsa modificar una base ya existente. Este script utiliza `MySQLdb`, disponible en esta PC mediante el paquete python-mysqlclient. Los permisos específicos de aplicación se configuran en ese mismo script.
+Si la base está vacía, la cuenta administrativa se crea cuando `ADMIN_INITIAL_PASSWORD` está configurada y tiene al menos 12 caracteres. El correo inicial es `cameraadmin@tallermeco.local`; la contraseña vive únicamente en `.env`. El primer taller se configura una sola vez desde el endpoint administrativo descrito en el [estado del proyecto](docs/estado-del-proyecto.md).
 
-V1 fue aplicada directamente en esta etapa, no por Flyway. Al integrar Spring Boot: validar el esquema, registrar explícitamente una baseline Flyway versión 1 en esta base y usar V2 en adelante. En bases nuevas Flyway ejecutará V1 normalmente y el aprovisionamiento asignará los permisos. No activar baseline automática indiscriminadamente. El backend usará Spring JDBC con consultas parametrizadas y transacciones.
+### Preparar otra instalación
 
-Ver relaciones y reglas en [docs/modelo.md](docs/modelo.md).
+`scripts/db-init.py` crea una base nueva y aplica V1 directamente. El backend tiene `spring.flyway.baseline-on-migrate=false`; por ello, ese inicializador por sí solo no registra una línea base de Flyway. El repositorio todavía no incluye un procedimiento versionado de principio a fin para inicializar una base nueva y registrar su línea base. El [estado del proyecto](docs/estado-del-proyecto.md) marca este trabajo como pendiente para que no se confunda con el arranque del entorno ya preparado.
 
-- Roles iniciales ADMIN, MECHANIC, CLIENT. Permisos por operación se definirán en Spring Security.
-- Una orden conserva el cliente al ingreso aunque cambie el propietario del vehículo.
-- Movimientos de inventario conservan cantidad firmada, costo y precio históricos. Consumos/devoluciones ligados a una orden representan sus piezas utilizadas.
-- Stock actualizado atómicamente por trigger, con bloqueo de fila y saldo no negativo. El usuario de aplicación no puede escribirlo directamente.
-- Movimientos, pagos, auditoría e historial son append-only para la aplicación. No protege frente al administrador del servidor.
-- Pagos positivos con tipo PAYMENT o REFUND; cobro y reparación tienen estados independientes. No se almacenan datos de tarjetas.
-- Importes DECIMAL/NUMERIC; fechas DATETIME(6) en UTC. Moneda MXN por defecto.
+No ejecutes el inicializador contra una base existente: se detiene si detecta `tallermeco` y las modificaciones posteriores deben pasar por migraciones.
 
-Pendiente en backend: autenticación, CSRF, permisos por recurso, transiciones de estado, límites de devoluciones/reembolsos, cierre inmutable y emisión automática de auditoría. El esquema no sustituye estas reglas. También falta definir impuestos, descuentos y política de costeo antes del módulo financiero.
+## Operación local
 
-## Backups y operación
+| Acción | Comando |
+|---|---|
+| Comprobar MariaDB y la respuesta CSRF | `./scripts/db-check.sh` y `curl --fail http://127.0.0.1:8080/api/auth/csrf` |
+| Guardar un respaldo SQL | `./scripts/db-backup.sh` |
+| Detener la aplicación | `./scripts/app-stop.sh` |
+| Detener MariaDB | `./scripts/db-stop.sh` |
 
-`./scripts/db-backup.sh` crea una copia SQL local con permisos restringidos, excluida de Git. Esta copia no está cifrada ni programada. Restaurar únicamente sobre una base de prueba vacía. Para restaurar en otro servidor hay que provisionar usuarios y revisar los definers de triggers; las cuentas no se incluyen en el dump de la base.
+La base persistente se guarda en `.local/mariadb`, y los respaldos SQL en `backups/`. Ambos directorios están excluidos de Git. El archivo `.env` también está excluido; nunca publiques credenciales ni respaldos.
 
-Antes de producción: backups cifrados externos programados, prueba periódica de restauración, secretos separados, HTTPS, MFA administrativo y pruebas de autorización. La carpeta de datos no es un backup.
+## Desarrollo y verificación
 
-## Próxima etapa
+Desde la raíz del repositorio:
 
-Crear Spring Boot y conectar con `taller_app`; integrar Flyway y construir identidad/acceso antes de exponer endpoints de negocio.
+```sh
+npm --prefix frontend ci
+npm --prefix frontend run build
+node --test tests/auth-frontend.mjs
+./scripts/test-auth-backend.sh
+```
+
+La prueba backend prepara una base aislada con credenciales locales en `.local/auth-test.env`. La ejecución de esta revisión documental no incluyó pruebas ni compilaciones; consulta el [estado del proyecto](docs/estado-del-proyecto.md) para distinguir los archivos de prueba existentes de una ejecución reciente.
+
+## Datos y reglas importantes
+
+- Las migraciones están en `backend/src/main/resources/db/migration/`. V1 crea el esquema; V2–V5 amplían movimientos, roles, clientes/talleres y perfil.
+- Las cantidades de movimientos de inventario tienen signo; los consumos y las devoluciones conservan sus costos y precios históricos.
+- Pagos, movimientos de inventario, auditoría e historial son registros históricos protegidos contra cambios directos.
+- El sistema no almacena datos de tarjetas.
+- El modelo no define aún impuestos, descuentos ni una política de costeo. Véase [modelo de datos](docs/modelo.md).
+
+## Mapa de documentación
+
+- [Índice de documentación](docs/README.md)
+- [Estado y progreso](docs/estado-del-proyecto.md)
+- [Modelo de datos y reglas](docs/modelo.md)
+- [Alcance de Fase 2](docs/FASE%202%20%E2%80%94%20TallerMeco.md)
+- [Modelo de clientes y talleres](docs/Astra%20%E2%80%94%20P2-02%20Modelo%20de%20clientes%20y%20talleres.md)
+- [Diagramas del sistema](docs/diagrams/)

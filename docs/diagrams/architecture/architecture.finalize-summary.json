@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/candidate.json",
+    "sha256": "b2c50cb1ca9d679b76eb8599161df750a03d37d1507489169defc8b624d5b5d1",
+    "bytes": 1629
+  },
+  "artifact": {
+    "path": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/architecture.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Label \"Almacenamiento local\" (~132px) is wider than component \"files\" (120px) — shorten the label or widen size.",
+      "subject": {
+        "diagramType": "architecture"
+      }
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/architecture.finalize.json",
+    "summaryReceipt": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/architecture.finalize-summary.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-09-29T00:44:25.740Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 363,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "/home/sun/Projects/TallerMeco/docs/diagrams/architecture/candidate.json",
+    "constraint": "Preserve all semantics and user-fixed geometry. Use references/architecture-layout-repair.md to choose a local repair or connected-scene reflow; edit the existing candidate.",
+    "then": "finalize-once"
+  }
+}

@@ -8,7 +8,7 @@ import java.util.*;
 public class Actor {
  private final Store db;
  public Actor(Store db){this.db=db;}
- public Map<String,Object> user(){return db.one("SELECT id,email,version FROM app_user WHERE email=? AND enabled=true",SecurityContextHolder.getContext().getAuthentication().getName());}
+ public Map<String,Object> user(){return db.one("SELECT id,email,version,display_name,phone,birth_date,bio,photo_reference FROM app_user WHERE email=? AND enabled=true",SecurityContextHolder.getContext().getAuthentication().getName());}
  public long id(){return Store.number(user().get("id"));}
  public boolean is(String role){return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_"+role));}
  public void admin(){if(!is("ADMIN"))throw new AccessDeniedException("Administrador requerido");}
@@ -21,7 +21,10 @@ public class Actor {
   u.put("role",roles.getFirst());
   u.put("roles",roles);
   var names=db.list("SELECT full_name,phone FROM customer WHERE user_id=? UNION ALL SELECT full_name,NULL FROM employee WHERE user_id=?",id(),id());
-  u.put("name",names.isEmpty()?u.get("email"):names.getFirst().get("full_name"));
-  u.put("phone",names.isEmpty()?"":names.getFirst().get("phone")); return u;
+  u.put("name",u.get("display_name") != null ? u.get("display_name") : names.isEmpty()?u.get("email"):names.getFirst().get("full_name"));
+  if(u.get("phone")==null) u.put("phone",names.isEmpty()?"":names.getFirst().get("phone"));
+  Object birth=u.remove("birth_date"); u.put("birthDate",birth==null?null:birth.toString());
+  Object photo=u.remove("photo_reference"); u.put("photoUrl",photo==null?null:"/api/account/photo?v="+photo);
+  u.remove("display_name"); return u;
  }
 }

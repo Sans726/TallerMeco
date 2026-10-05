@@ -97,8 +97,21 @@ public class CustomerRepository {
         return key.longValue();
     }
 
+    public void update(long id, CreateCustomerRequest request) {
+        jdbc.update("""
+                UPDATE customer SET full_name=?,alias=?,alternative_contact_name=?,birth_date=?,personal_phone=?,work_phone=?,
+                personal_email=?,work_email=?,street=?,neighborhood=?,municipality=?,state=?,postal_code=?,version=version+1 WHERE id=?
+                """, request.fullName(), request.alias(), request.alternativeContactName(), request.birthDate(), request.personalPhone(),
+                request.workPhone(), request.personalEmail(), request.workEmail(), request.street(), request.neighborhood(),
+                request.municipality(), request.state(), request.postalCode(), id);
+    }
+
     public void associateWithWorkshop(long customerId, long workshopId) {
         jdbc.update("INSERT INTO customer_workshop(customer_id,workshop_id) VALUES (?,?)", customerId, workshopId);
+    }
+
+    public void updatePhotoReference(long customerId, String reference) {
+        jdbc.update("UPDATE customer SET photo_reference=?, version=version+1 WHERE id=?", reference, customerId);
     }
 
     public boolean isAssociatedWithWorkshop(long customerId, long workshopId) {
@@ -139,12 +152,12 @@ public class CustomerRepository {
         if (date == null) statement.setDate(index, null); else statement.setDate(index, Date.valueOf(date));
     }
 
-    static String normalizeEmail(String value) {
+    public static String normalizeEmail(String value) {
         if (value == null || value.isBlank()) return null;
         return value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
-    static String normalizePhone(String value) {
+    public static String normalizePhone(String value) {
         if (value == null || value.isBlank()) return null;
         String normalized = value.replaceAll("[^0-9]", "");
         return normalized.isBlank() ? null : normalized;

@@ -1,6 +1,5 @@
 import { reactive } from 'vue'
 
-export const isDemo = import.meta.env.VITE_DEMO === 'true'
 export type Row = Record<string, any>
 export const session = reactive<{ user: Row | null; loading: boolean }>({ user: null, loading: true })
 let csrf: { token: string; header: string } | null = null
@@ -21,7 +20,6 @@ export async function csrfRefresh() {
 }
 
 export async function api<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  if (import.meta.env.VITE_DEMO === 'true') return (await import('./demo')).demoApi(path, method, body)
   if (!csrf && method !== 'GET') await csrfRefresh()
   const headers: Record<string, string> = {}
   if (method !== 'GET' && csrf) headers[csrf.header] = csrf.token
@@ -41,13 +39,15 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown)
   return text ? JSON.parse(text) : undefined as T
 }
 
+export async function uploadCustomerPhoto<T = any>(id:number,file:File):Promise<T>{
+  if(!csrf) await csrfRefresh()
+  const form=new FormData();form.append('file',file)
+  const response=await fetch(`/api/customers/${id}/photo`,{method:'POST',credentials:'same-origin',headers:{[csrf!.header]:csrf!.token},body:form})
+  if(!response.ok) throw new Error(await errorMessage(response,'No se pudo guardar la fotografía'))
+  return await response.json()
+}
+
 export async function login(email: string, password: string) {
-  if (import.meta.env.VITE_DEMO === 'true') {
-    const demo = await import('./demo')
-    demo.demoLogin(email)
-    session.user = demo.demoUser
-    return
-  }
   clearSession()
   await csrfRefresh()
   const token = csrf!
@@ -64,17 +64,13 @@ export async function login(email: string, password: string) {
 
 export async function logout() {
   try {
-    if (!isDemo) await csrfRefresh()
+    await csrfRefresh()
     await api('/auth/logout', 'POST')
     clearSession()
     location.hash = '/login'
   } catch (error) {
     notify(error instanceof Error ? error.message : 'No se pudo cerrar la sesión', 'error')
   }
-}
-
-export async function resetDemo() {
-  if (import.meta.env.VITE_DEMO === 'true') (await import('./demo')).resetDemo()
 }
 
 export const money=(v:unknown)=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(v||0))
@@ -84,3 +80,14 @@ export const roles:Record<string,string>={ADMIN:'Administración',RECEPTIONIST:'
 export const alert=reactive({message:'',type:'success'})
 let timer:ReturnType<typeof setTimeout>
 export function notify(message:string,type='success'){alert.message=message;alert.type=type;clearTimeout(timer);timer=setTimeout(()=>alert.message='',6000)}
+
+export async function uploadProfilePhoto(file:File):Promise<Row>{
+  if(!csrf) await csrfRefresh()
+  const form=new FormData();form.append('file',file)
+  const response=await fetch('/api/account/photo',{method:'POST',credentials:'same-origin',headers:{[csrf!.header]:csrf!.token},body:form})
+  if(!response.ok){
+    if(response.status===401){clearSession();location.hash='/login'}
+    throw new Error(await errorMessage(response,'No se pudo guardar la fotografía'))
+  }
+  return await response.json()
+}

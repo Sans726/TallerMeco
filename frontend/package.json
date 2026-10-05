@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "vue-tsc -b && vite build",
-    "demo": "VITE_DEMO=true vite --host 127.0.0.1 --port 5173 --strictPort",
-    "build:demo": "vue-tsc -b && VITE_DEMO=true vite build --outDir ../prototype/dist"
+    "build": "vue-tsc -b && vite build"
   },
   "dependencies": {
     "vue": "^3.5.0",
