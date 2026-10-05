@@ -7,6 +7,7 @@ Esta carpeta reúne el estado vigente del trabajo, las decisiones del modelo y e
 | Documento | Para qué sirve |
 |---|---|
 | [Estado del proyecto](estado-del-proyecto.md) | Reporte de avance por entregable, evidencia, pendientes y diagramas actuales. |
+| [Direcciones por código postal](direcciones-codigo-postal.md) | Autollenado, catálogo SEPOMEX, API interna y mantenimiento. |
 | [Modelo de datos](modelo.md) | Entidades, relaciones y reglas de integridad de inventario, pagos y reportes. |
 | [Fase 2 — TallerMeco](FASE%202%20%E2%80%94%20TallerMeco.md) | Alcance, requisitos y decisiones de la fase de autenticación y clientes. Su lista de avance inicial se conserva como antecedente; el estado actual está en el reporte anterior. |
 | [Modelo de clientes y talleres](Astra%20%E2%80%94%20P2-02%20Modelo%20de%20clientes%20y%20talleres.md) | Diseño del registro, duplicados, asociación multitaller y persistencia de clientes. |

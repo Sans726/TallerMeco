@@ -19,6 +19,7 @@ La aplicación combina una interfaz Vue con una API Spring Boot y una base de da
 |---|---|---|
 | Inicio de sesión, sesiones y roles | ✅ Implementado | [Seguridad](backend/src/main/java/mx/tallermeco/config/SecurityConfig.java) · Mantener pruebas de permisos al ampliar flujos. |
 | Gestión de clientes | ✅ Implementado | [Módulo de clientes](backend/src/main/java/mx/tallermeco/customer/) · Alta, ficha, edición, validación de duplicados y fotografía. |
+| Dirección por código postal | ✅ Implementado | [Autollenado postal](docs/direcciones-codigo-postal.md) · Estado, municipio y selección de colonia; consulta local sin API de pago. |
 | Empresa y primer taller | 🟡 Parcial | [API de configuración](backend/src/main/java/mx/tallermeco/customer/WorkshopSetupController.java) · Falta una pantalla administrativa de inicio. |
 | Vehículos y órdenes | 🟡 Base funcional | [API del taller](backend/src/main/java/mx/tallermeco/workshop/) · Completar y validar el recorrido hasta la entrega. |
 | Inventario, pagos y reportes | 🟡 Base funcional | [Inventario](backend/src/main/java/mx/tallermeco/inventory/) · Validar los recorridos integrales con datos controlados. |
@@ -31,6 +32,7 @@ Consulta el [reporte detallado de avance](docs/estado-del-proyecto.md) para ver 
 
 - Inicio de sesión con sesión de servidor, roles y protección CSRF.
 - Registro, consulta, edición y fotografía de clientes.
+- Autollenado de direcciones mexicanas por código postal, con catálogo local SEPOMEX.
 - Asociación de clientes con talleres y datos de empresa.
 - API y vistas para vehículos, órdenes de servicio, inventario y reportes.
 - Registro de pagos, movimientos de inventario, auditoría e historial.

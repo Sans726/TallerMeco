@@ -1,0 +1,11 @@
+{
+  "source": "https://github.com/IcaliaLabs/sepomex",
+  "sourceCommit": "3899c9e68c5ab46a9a789911d298833254a88b26",
+  "sourceFile": "lib/sepomex_db.csv",
+  "upstreamCatalogCommitDate": "2026-07-23",
+  "importedAt": "2026-10-05",
+  "sourceSha256": "3411a0be5e11c3613f16939ea85707901c2d66e4031914e4ca42bd146993dfee",
+  "postalCodes": 31878,
+  "uniqueSettlements": 157849,
+  "states": 32
+}

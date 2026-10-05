@@ -3,6 +3,7 @@ import {ref,computed,onUnmounted} from 'vue'
 import {customerFacade} from '../facade/customerFacade'
 import {notify} from '../../../api'
 import Icon from '../../../components/Icon.vue'
+import AddressFields from '../../../components/address/AddressFields.vue'
 
 const props=defineProps<{initial?:any;workshops?:any[];customerId?:number}>()
 const emit=defineEmits<{created:[any];cancel:[]}>()
@@ -70,13 +71,7 @@ async function submit(){
         </section>
         <section class="form-section" aria-labelledby="address-heading">
           <header class="form-section-heading"><span class="section-icon"><Icon name="pin"/></span><div><h2 id="address-heading">Dirección</h2><p>Ubicación y datos de correspondencia.</p></div><span class="step-number">03</span></header>
-          <div class="form-grid">
-            <label class="span-two">Calle<input v-model="form.street" maxlength="180" autocomplete="street-address" placeholder="Calle y número"></label>
-            <label>Colonia<input v-model="form.neighborhood" maxlength="120" placeholder="Colonia o barrio"></label>
-            <label>Municipio<input v-model="form.municipality" maxlength="120" autocomplete="address-level2" placeholder="Municipio o alcaldía"></label>
-            <label>Estado<input v-model="form.state" maxlength="120" autocomplete="address-level1" placeholder="Estado"></label>
-            <label>Código postal<input v-model="form.postalCode" maxlength="12" pattern="[A-Za-z0-9 -]{3,12}" autocomplete="postal-code" placeholder="Código postal"></label>
-          </div>
+          <AddressFields v-model="form" />
         </section>
       </div>
       <aside class="customer-form-aside">
