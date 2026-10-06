@@ -18,15 +18,15 @@ La aplicación combina una interfaz Vue con una API Spring Boot y una base de da
 | Módulo / entregable | Estado | Evidencia y siguiente hito |
 |---|---|---|
 | Inicio de sesión, sesiones y roles | ✅ Implementado | [Seguridad](backend/src/main/java/mx/tallermeco/config/SecurityConfig.java) · Mantener pruebas de permisos al ampliar flujos. |
-| Gestión de clientes | ✅ Implementado | [Módulo de clientes](backend/src/main/java/mx/tallermeco/customer/) · Alta, ficha, edición, validación de duplicados y fotografía. |
+| Gestión de clientes | ✅ Implementado | [Módulo de clientes](backend/src/main/java/mx/tallermeco/customer/) · Alta, ficha, edición, suspensión/reactivación, asociaciones, aislamiento por taller y páginas de 10. |
 | Dirección por código postal | ✅ Implementado | [Autollenado postal](docs/direcciones-codigo-postal.md) · Estado, municipio y selección de colonia; consulta local sin API de pago. |
-| Empresa y primer taller | 🟡 Parcial | [API de configuración](backend/src/main/java/mx/tallermeco/customer/WorkshopSetupController.java) · Falta una pantalla administrativa de inicio. |
+| Administración de talleres | ✅ Implementado y probado | [Gestión de talleres](backend/src/main/java/mx/tallermeco/workshop/management/) · Alta, edición, banner y alcance de recepción. |
 | Vehículos y órdenes | 🟡 Base funcional | [API del taller](backend/src/main/java/mx/tallermeco/workshop/) · Completar y validar el recorrido hasta la entrega. |
 | Inventario, pagos y reportes | 🟡 Base funcional | [Inventario](backend/src/main/java/mx/tallermeco/inventory/) · Validar los recorridos integrales con datos controlados. |
 | Pruebas automatizadas | 🟡 Hay suites; no verificadas en esta actualización | [Pruebas disponibles](backend/src/test/) · Ejecutar y registrar resultado antes de la siguiente entrega. |
 | Alta desde cero de la base | 🟡 Procedimiento incompleto | [Detalle y pendiente](docs/estado-del-proyecto.md#resumen-de-avance) · Registrar el baseline de Flyway en el proceso inicial. |
 
-Consulta el [reporte detallado de avance](docs/estado-del-proyecto.md) para ver criterios, evidencias enlazadas, próximos pasos y diagramas. **“Implementado” indica que el código existe; no significa que las pruebas se hayan ejecutado en esta actualización.**
+Consulta el [reporte detallado de avance](docs/estado-del-proyecto.md) para ver criterios, evidencias enlazadas, próximos pasos y diagramas. La [entrega UC-CV-02](docs/entrega-uc-cv-02.md) distingue pruebas ejecutadas y flujos legacy pendientes.
 
 ## Qué incluye
 
@@ -52,7 +52,7 @@ flowchart LR
     M[Flyway] --> DB
 ```
 
-El módulo de clientes muestra la separación **vista → facade → API** en el frontend y **controller → service → repository → base de datos** en el backend. Otros módulos conservan acceso JDBC mediante `Store`; la tabla de progreso explica el alcance por área.
+El módulo de clientes muestra la separación **vista → componente → facade/API** en el frontend y **controller → service → repository → base de datos** en el backend. Otros módulos conservan acceso JDBC mediante `Store`; la tabla de progreso explica el alcance por área.
 
 ## Arranque en el entorno local preparado
 
@@ -66,7 +66,7 @@ Para iniciar el entorno preparado:
 
 El script inicia MariaDB, compila la interfaz, aplica las migraciones pendientes de Flyway y levanta Spring Boot. Abre [http://127.0.0.1:8080/#/login](http://127.0.0.1:8080/#/login).
 
-Si la base está vacía, la cuenta administrativa se crea cuando `ADMIN_INITIAL_PASSWORD` está configurada y tiene al menos 12 caracteres. El correo inicial es `cameraadmin@tallermeco.local`; la contraseña vive únicamente en `.env`. El primer taller se configura una sola vez desde el endpoint administrativo descrito en el [estado del proyecto](docs/estado-del-proyecto.md).
+Si la base está vacía, la cuenta administrativa se crea cuando `ADMIN_INITIAL_PASSWORD` está configurada y tiene al menos 12 caracteres. El correo inicial es `cameraadmin@tallermeco.local`; la contraseña vive únicamente en `.env`. El primer taller se registra desde **Talleres**, con ADMIN. Si no existe empresa activa, el alta crea una usando la razón social.
 
 ### Preparar otra instalación
 
@@ -78,6 +78,7 @@ No ejecutes el inicializador contra una base existente: se detiene si detecta `t
 
 | Acción | Comando |
 |---|---|
+| Sincronizar acceso DB si cambió la IP del contenedor | `python scripts/db-sync-host.py` y, después de V6, `python scripts/db-grants-p2.py` |
 | Comprobar MariaDB y la respuesta CSRF | `./scripts/db-check.sh` y `curl --fail http://127.0.0.1:8080/api/auth/csrf` |
 | Guardar un respaldo SQL | `./scripts/db-backup.sh` |
 | Detener la aplicación | `./scripts/app-stop.sh` |
@@ -92,15 +93,15 @@ Desde la raíz del repositorio:
 ```sh
 npm --prefix frontend ci
 npm --prefix frontend run build
-node --test tests/auth-frontend.mjs
+node --test tests/auth-frontend.mjs tests/customer-validation.mjs
 ./scripts/test-auth-backend.sh
 ```
 
-La prueba backend prepara una base aislada con credenciales locales en `.local/auth-test.env`. La ejecución de esta revisión documental no incluyó pruebas ni compilaciones; consulta el [estado del proyecto](docs/estado-del-proyecto.md) para distinguir los archivos de prueba existentes de una ejecución reciente.
+El script backend crea dos esquemas y usuarios temporales en MariaDB para integración y compatibilidad V5→V6, ejecuta Maven y los elimina al finalizar. No reinicia la base real. El 5 de octubre de 2026 pasaron 30 pruebas backend y 14 frontend; también se compiló frontend/backend y se recorrieron los formularios en un entorno aislado. Véase [administración de clientes y talleres](docs/administracion-clientes-talleres.md).
 
 ## Datos y reglas importantes
 
-- Las migraciones están en `backend/src/main/resources/db/migration/`. V1 crea el esquema; V2–V5 amplían movimientos, roles, clientes/talleres y perfil.
+- Las migraciones están en `backend/src/main/resources/db/migration/`. V1 crea el esquema; V2–V5 amplían movimientos, roles, clientes/talleres y perfil; V6 agrega identidad, reservas únicas de contactos, talleres y alcance de recepción.
 - Las cantidades de movimientos de inventario tienen signo; los consumos y las devoluciones conservan sus costos y precios históricos.
 - Pagos, movimientos de inventario, auditoría e historial son registros históricos protegidos contra cambios directos.
 - El sistema no almacena datos de tarjetas.
@@ -109,6 +110,9 @@ La prueba backend prepara una base aislada con credenciales locales en `.local/a
 ## Mapa de documentación
 
 - [Índice de documentación](docs/README.md)
+- [Entrega UC-CV-02 en tablas](docs/entrega-uc-cv-02.md)
+- [Diagramas HTML y SVG](docs/README.md#diagramas-técnicos)
+- [Administración de clientes y talleres](docs/administracion-clientes-talleres.md)
 - [Estado y progreso](docs/estado-del-proyecto.md)
 - [Modelo de datos y reglas](docs/modelo.md)
 - [Alcance de Fase 2](docs/FASE%202%20%E2%80%94%20TallerMeco.md)

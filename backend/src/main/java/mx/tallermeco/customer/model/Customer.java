@@ -21,5 +21,6 @@ public record Customer(
         String state,
         String postalCode,
         boolean active,
-        long version
+        long version,
+        String givenName,String paternalSurname,String maternalSurname,String curp,String rfc,String cellPhone
 ) {}

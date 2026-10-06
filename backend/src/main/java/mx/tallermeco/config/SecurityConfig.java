@@ -49,13 +49,10 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "RECEPTIONIST", "MECHANIC", "CLIENT")
                 .requestMatchers("/api/employees", "/api/employees/**", "/api/reports", "/api/audit").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/addresses/postal-codes/**").hasAnyRole("ADMIN", "RECEPTIONIST")
-                .requestMatchers(HttpMethod.GET, "/api/customers", "/api/customers/**").hasAnyRole("ADMIN", "RECEPTIONIST")
-                .requestMatchers(HttpMethod.POST, "/api/customers", "/api/customers/*/photo").hasAnyRole("ADMIN", "RECEPTIONIST")
-                .requestMatchers(HttpMethod.PUT, "/api/customers/*").hasAnyRole("ADMIN", "RECEPTIONIST")
-                .requestMatchers("/api/customers", "/api/customers/**").hasRole("ADMIN")
+                .requestMatchers("/api/customers", "/api/customers/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                 .requestMatchers(HttpMethod.GET, "/api/workshops", "/api/workshops/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                 .requestMatchers("/api/workshops", "/api/workshops/**").hasRole("ADMIN")
-                // Reception only manages customer registration; all other business routes keep their existing permissions.
+                // Customer and workshop scope checks are enforced again in services.
                 .requestMatchers("/api/**").hasAnyRole("ADMIN", "MECHANIC", "CLIENT")
                 .anyRequest().permitAll())
             .requestCache(cache -> cache.requestCache(new NullRequestCache()))

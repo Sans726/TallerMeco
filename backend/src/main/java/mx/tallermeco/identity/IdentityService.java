@@ -17,9 +17,9 @@ public class IdentityService {
  @Value("${app.base-url}") String baseUrl; @Value("${app.outbox}") String outbox;
  public IdentityService(Store db,Audit audit,PasswordEncoder encoder,JavaMailSender mail){this.db=db;this.audit=audit;this.encoder=encoder;this.mail=mail;}
  @Transactional public long register(String email,String password,String name,String phone){
-  long id=db.id("INSERT INTO app_user(email,password_hash) VALUES (?,?)",email.trim().toLowerCase(Locale.ROOT),encoder.encode(password));
+  long id=db.id("INSERT INTO app_user(email,password_hash) VALUES (?,?)",InputRules.email("email",email,true),encoder.encode(password));
   db.update("INSERT INTO user_role VALUES (?,'CLIENT')",id);
-  db.update("INSERT INTO customer(user_id,full_name,phone) VALUES (?,?,?)",id,name.trim(),phone);
+  db.update("INSERT INTO customer(user_id,full_name,phone) VALUES (?,?,?)",id,InputRules.name("name",name,160,true),InputRules.phone("phone",phone,false));
   audit.record(id,"REGISTER","user",id,Map.of()); return id;
  }
  @Transactional public void changePassword(long id,String oldPassword,String password){

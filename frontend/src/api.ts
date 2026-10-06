@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 
 export type Row = Record<string, any>
+export class ApiError extends Error { constructor(message:string,public fields:Record<string,string>={},public status=0){super(message)} }
 export const session = reactive<{ user: Row | null; loading: boolean }>({ user: null, loading: true })
 let csrf: { token: string; header: string } | null = null
 
@@ -23,28 +24,21 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown)
   if (!csrf && method !== 'GET') await csrfRefresh()
   const headers: Record<string, string> = {}
   if (method !== 'GET' && csrf) headers[csrf.header] = csrf.token
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json'
   const response = await fetch('/api' + path, {
     method, headers, credentials: 'same-origin', cache: 'no-store',
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
   })
   if (!response.ok) {
     if (response.status === 401) {
       clearSession()
       if (path !== '/auth/me') location.hash = '/login'
     }
-    throw new Error(await errorMessage(response, 'No se pudo completar la operación'))
+    const detail=await response.json().catch(()=>({message:'No se pudo completar la operación'}))
+    throw new ApiError(detail.message,detail.fields??{},response.status)
   }
   const text = await response.text()
   return text ? JSON.parse(text) : undefined as T
-}
-
-export async function uploadCustomerPhoto<T = any>(id:number,file:File):Promise<T>{
-  if(!csrf) await csrfRefresh()
-  const form=new FormData();form.append('file',file)
-  const response=await fetch(`/api/customers/${id}/photo`,{method:'POST',credentials:'same-origin',headers:{[csrf!.header]:csrf!.token},body:form})
-  if(!response.ok) throw new Error(await errorMessage(response,'No se pudo guardar la fotografía'))
-  return await response.json()
 }
 
 export async function login(email: string, password: string) {

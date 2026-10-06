@@ -1,47 +1,54 @@
 <script setup lang="ts">
-import {ref,onMounted,computed,nextTick} from 'vue'
+import {ref,onMounted,onUnmounted,watch,computed} from 'vue'
+import {useRoute,useRouter} from 'vue-router'
 import {customerFacade} from '../facade/customerFacade'
+import type {Customer,CustomerPage,WorkshopOption,CustomerWorkshop} from '../types/customer'
 import CustomerForm from '../components/CustomerForm.vue'
+import CustomerAssociations from '../components/CustomerAssociations.vue'
 import Icon from '../../../components/Icon.vue'
-import {session} from '../../../api'
-const rows=ref<any[]>([]),selected=ref<any|null>(null),editing=ref(false),workshops=ref<any[]>([]),query=ref('')
-const loading=ref(true),opening=ref<number|null>(null),error=ref(''),detail=ref<HTMLElement|null>(null)
-const canManage=computed(()=>['ADMIN','RECEPTIONIST'].includes(session.user?.role))
-const filtered=computed(()=>rows.value.filter(r=>JSON.stringify(r).toLowerCase().includes(query.value.toLowerCase())))
-const contactCount=computed(()=>rows.value.filter(r=>r.personal_phone||r.personal_email).length)
-const initials=(name:string)=>String(name||'').trim().split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase()
-async function load(){loading.value=true;error.value='';try{[rows.value,workshops.value]=await Promise.all([customerFacade.list(),customerFacade.workshopsList()])}catch(e:any){error.value=e.message}finally{loading.value=false}}
-async function select(row:any){
-  opening.value=row.id;error.value=''
-  try{const [customer,associated]=await Promise.all([customerFacade.get(row.id),customerFacade.workshops(row.id)]);selected.value={...customer,workshops:associated};editing.value=false;await nextTick();detail.value?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});detail.value?.focus({preventScroll:true})}
-  catch(e:any){error.value=e.message}finally{opening.value=null}
-}
-async function saved(){const id=selected.value.id;await load();await select({id})}
-onMounted(load)
+import {notify,session} from '../../../api'
+import {displayText,displayIdentifier,displayBirthDate,displayPhone} from '../../shared/presentation'
+const route=useRoute(),router=useRouter()
+const result=ref<CustomerPage>({items:[],page:1,pageSize:10,totalItems:0,totalPages:0}),selected=ref<Customer|null>(null),associated=ref<CustomerWorkshop[]>([]),editing=ref(false),workshops=ref<WorkshopOption[]>([]),workshopId=ref<number|''>(''),query=ref(''),direction=ref('ASC'),page=ref(1),loading=ref(false),busy=ref(false),error=ref('')
+const pending=ref(false),initialTarget=ref<number|''>('')
+const initials=(name:string)=>name.split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase()
+let generation=0,timer:ReturnType<typeof setTimeout>|undefined
+const pages=computed(()=>{const start=Math.max(1,Math.min(page.value-2,result.value.totalPages-4));return Array.from({length:Math.min(5,result.value.totalPages)},(_,i)=>start+i)})
+async function load(){if(!workshopId.value&&!pending.value)return;const request=++generation;loading.value=true;error.value='';try{const data=pending.value?await customerFacade.unassigned(page.value,direction.value,query.value):await customerFacade.list(Number(workshopId.value),page.value,direction.value,query.value);if(request===generation)result.value=data}catch(e){if(request===generation)error.value=(e as Error).message}finally{if(request===generation)loading.value=false}}
+async function initialize(){loading.value=true;error.value='';try{workshops.value=await customerFacade.workshopsList();if(workshops.value.length)workshopId.value=workshops.value.find(w=>w.id===Number(route.query.workshopId))?.id??workshops.value[0]!.id}catch(e){error.value=(e as Error).message}finally{loading.value=false}}
+watch(pending,()=>{selected.value=null;editing.value=false;page.value=1;void load()})
+watch(workshopId,()=>{void router.replace({path:'/customers',query:{workshopId:workshopId.value}});selected.value=null;editing.value=false;page.value=1;void load()})
+watch(()=>route.query.workshopId,id=>{const found=workshops.value.find(w=>w.id===Number(id));if(found&&workshopId.value!==found.id)workshopId.value=found.id})
+watch([page,direction],()=>{void load()})
+watch(query,()=>{clearTimeout(timer);timer=setTimeout(()=>{if(page.value!==1)page.value=1;else void load()},300)})
+async function select(id:number){if(busy.value||!workshopId.value)return;busy.value=true;error.value='';try{const [customer,links]=await Promise.all([customerFacade.get(id,Number(workshopId.value)),customerFacade.workshops(id,Number(workshopId.value))]);selected.value=customer;associated.value=links;editing.value=false}catch(e){error.value=(e as Error).message}finally{busy.value=false}}
+async function saved(){const id=selected.value?.id;await load();if(id)await select(id)}
+async function changed(){const id=selected.value?.id;selected.value=null;await load();if(id&&result.value.items.some(c=>c.id===id))await select(id);notify('Asociación actualizada')}
+async function initial(id:number){if(busy.value||!initialTarget.value)return;busy.value=true;error.value='';try{await customerFacade.initialWorkshop(id,Number(initialTarget.value));await load();notify('Cliente asociado al taller')}catch(e){error.value=(e as Error).message}finally{busy.value=false}}
+async function status(){if(!selected.value||busy.value)return;busy.value=true;error.value='';try{selected.value=await customerFacade.status(selected.value.id,Number(workshopId.value),!selected.value.active);notify(selected.value.active?'Cliente reactivado':'Cliente suspendido');await load()}catch(e){error.value=(e as Error).message}finally{busy.value=false}}
+onMounted(initialize);onUnmounted(()=>{generation++;clearTimeout(timer)})
 </script>
 <template>
-  <section class="page customer-list">
-    <div class="page-heading"><div><p class="eyebrow">DIRECTORIO DEL TALLER</p><h1>Clientes</h1><p class="muted">Conoce a las personas que confían en tu taller.</p></div><RouterLink v-if="canManage" to="/customers/new" class="btn primary"><Icon name="plus" :size="18"/>Registrar cliente</RouterLink></div>
-    <div class="directory-summary"><div><span class="summary-symbol"><Icon name="users"/></span><span><strong>{{loading?'—':rows.length}}</strong><small>Clientes registrados</small></span></div><div><span class="summary-symbol"><Icon name="mail"/></span><span><strong>{{loading?'—':contactCount}}</strong><small>Con datos de contacto</small></span></div><div><span class="summary-symbol"><Icon name="wrench"/></span><span><strong>{{loading?'—':workshops.length}}</strong><small>Talleres disponibles</small></span></div></div>
-    <p v-if="error" class="error" role="alert">{{error}} <button class="text-link" @click="load">Reintentar</button></p>
-    <section class="panel directory-panel" aria-label="Directorio de clientes" :aria-busy="loading">
-      <div class="table-toolbar"><div class="search"><Icon name="search" :size="19"/><input v-model="query" placeholder="Buscar por nombre, teléfono o email…" aria-label="Buscar cliente"><button v-if="query" class="icon-button" @click="query=''" aria-label="Limpiar búsqueda"><Icon name="close" :size="16"/></button></div><span class="result-count">{{filtered.length}} {{filtered.length===1?'cliente':'clientes'}}</span></div>
-      <div v-if="loading" class="skeleton-table" role="status" aria-label="Cargando clientes"><div v-for="n in 4" :key="n" class="skeleton-row"><span class="skeleton skeleton-avatar"></span><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div></div>
-      <div v-else class="table-wrap"><table v-if="filtered.length"><thead><tr><th>Cliente</th><th>Contacto</th><th>Municipio</th><th class="align-right">Ficha del cliente</th></tr></thead><tbody><tr v-for="r in filtered" :key="r.id" :class="{'selected-row':selected?.id===r.id}"><td><div class="customer-identity"><img v-if="r.photo_reference" class="customer-avatar" :src="'/api/customers/photos/'+r.photo_reference" alt=""><span v-else class="customer-avatar">{{initials(r.full_name)}}</span><div><strong>{{r.full_name}}</strong><small>{{r.alias||'Cliente #'+r.id}}</small></div></div></td><td><span>{{r.personal_phone||'Sin teléfono'}}</span><small>{{r.personal_email||'Sin email'}}</small></td><td>{{r.municipality||'—'}}</td><td class="align-right"><button class="btn secondary small-btn" :disabled="opening!==null" @click="select(r)"><span v-if="opening===r.id" class="loader small-loader"></span>{{opening===r.id?'Abriendo…':'Ver ficha'}}<Icon name="arrow" :size="15"/></button></td></tr></tbody></table>
-        <div v-else class="empty directory-empty"><span class="empty-symbol"><Icon :name="query?'search':'users'" :size="30"/></span><h3>{{query?'No encontramos coincidencias':'Tu directorio empieza aquí'}}</h3><p>{{query?'Prueba con otro nombre, teléfono o correo electrónico.':'Reúne la información de cada cliente y ten sus datos siempre a mano.'}}</p><button v-if="query" class="btn secondary" @click="query=''">Limpiar búsqueda</button><RouterLink v-else-if="canManage" to="/customers/new" class="btn secondary"><Icon name="plus" :size="17"/>Registrar primer cliente</RouterLink></div>
-      </div>
-    </section>
-    <Transition name="reveal">
-      <section v-if="selected" :key="selected.id" ref="detail" tabindex="-1" class="customer-detail" aria-label="Ficha del cliente">
-        <header class="customer-detail-header"><div class="customer-identity"><img v-if="selected.photoReference" class="customer-avatar large" :src="'/api/customers/photos/'+selected.photoReference" alt="Fotografía del cliente"><span v-else class="customer-avatar large">{{initials(selected.fullName)}}</span><div><p class="eyebrow">FICHA DEL CLIENTE · #{{selected.id}}</p><h2>{{selected.fullName}}</h2></div></div><div class="button-row"><button v-if="canManage" class="btn secondary" @click="editing=!editing"><Icon :name="editing?'close':'edit'" :size="17"/>{{editing?'Cancelar edición':'Editar cliente'}}</button><button class="icon-button" aria-label="Cerrar ficha" @click="selected=null"><Icon name="close"/></button></div></header>
-        <CustomerForm v-if="editing" :initial="selected" :workshops="workshops" :customer-id="selected.id" @created="saved" @cancel="editing=false"/>
-        <div v-else class="customer-info-grid">
-          <section class="info-section"><h3><Icon name="users" :size="18"/>Información personal</h3><dl><div><dt>Nombre completo</dt><dd>{{selected.fullName}}</dd></div><div><dt>Alias</dt><dd>{{selected.alias||'Sin alias'}}</dd></div><div><dt>Contacto alternativo</dt><dd>{{selected.alternativeContactName||'No registrado'}}</dd></div><div><dt>Fecha de nacimiento</dt><dd>{{selected.birthDate||'No registrada'}}</dd></div></dl></section>
-          <section class="info-section"><h3><Icon name="mail" :size="18"/>Contacto</h3><dl><div><dt>Teléfono personal</dt><dd>{{selected.personalPhone||'No registrado'}}</dd></div><div><dt>Teléfono de trabajo</dt><dd>{{selected.workPhone||'No registrado'}}</dd></div><div><dt>Email personal</dt><dd>{{selected.personalEmail||'No registrado'}}</dd></div><div><dt>Email de trabajo</dt><dd>{{selected.workEmail||'No registrado'}}</dd></div></dl></section>
-          <section class="info-section"><h3><Icon name="pin" :size="18"/>Dirección</h3><dl><div><dt>Calle / colonia</dt><dd>{{[selected.street,selected.neighborhood].filter(Boolean).join(', ')||'No registrada'}}</dd></div><div><dt>Municipio / estado</dt><dd>{{[selected.municipality,selected.state].filter(Boolean).join(', ')||'No registrado'}}</dd></div><div><dt>Código postal</dt><dd>{{selected.postalCode||'No registrado'}}</dd></div></dl></section>
-          <section class="info-section"><h3><Icon name="wrench" :size="18"/>Talleres asociados</h3><div class="workshop-tags"><span v-for="w in selected.workshops" :key="w.id" class="page-tag"><Icon name="pin" :size="15"/>{{w.name}}</span><p v-if="!selected.workshops.length" class="muted">Sin talleres asociados.</p></div></section>
-        </div>
-      </section>
-    </Transition>
+ <section class="page customer-list">
+  <div class="page-heading"><div><p class="eyebrow">DIRECTORIO DEL TALLER</p><h1>Clientes</h1><p class="muted">Consulta y administra los clientes del taller seleccionado.</p></div><RouterLink to="/customers/new" class="btn primary"><Icon name="plus" :size="18"/>Registrar cliente</RouterLink></div>
+  <div v-if="session.user?.role==='ADMIN'" class="button-row"><button class="btn secondary" :disabled="busy" @click="pending=!pending">{{pending?'Volver al directorio por taller':'Clientes pendientes de taller'}}</button><p v-if="pending" class="field-hint">Registros anteriores o cuentas de cliente sin asociación activa. Asigna un taller para administrar su ficha.</p></div>
+  <p v-if="error" class="error" role="alert">{{error}} <button class="text-link" @click="workshopId?load():initialize()">Reintentar</button></p>
+  <section class="panel directory-panel" :aria-busy="loading">
+   <div class="table-toolbar"><label v-if="!pending">Taller<select v-model="workshopId" :disabled="busy||editing"><option value="" disabled>Selecciona un taller</option><option v-for="w in workshops" :key="w.id" :value="w.id">{{displayText(w.name)}}</option></select></label><label v-if="pending">Taller de destino<select v-model="initialTarget" :disabled="busy"><option value="" disabled>Selecciona un taller</option><option v-for="w in workshops" :key="w.id" :value="w.id">{{displayText(w.name)}}</option></select></label><div class="search"><Icon name="search"/><input v-model="query" maxlength="160" placeholder="Nombre, teléfono o email" aria-label="Buscar cliente"></div><label>Orden por nombre<select v-model="direction"><option value="ASC">A → Z</option><option value="DESC">Z → A</option></select></label><span class="result-count">{{result.totalItems}} clientes</span></div>
+   <div v-if="loading" class="loading" role="status">Cargando clientes…</div>
+   <div v-else-if="!workshops.length" class="empty"><h3>No tienes talleres disponibles</h3><p>Administración debe registrar un taller o asignarte acceso.</p></div>
+   <div v-else class="table-wrap"><table v-if="result.items.length"><thead><tr><th>Cliente</th><th>Contacto</th><th>Estado</th><th>Ficha</th></tr></thead><tbody><tr v-for="c in result.items" :key="c.id"><td><div class="customer-identity"><img v-if="c.photoReference&&!pending" class="customer-avatar" :src="customerFacade.photoUrl(c.photoReference,Number(workshopId))" alt=""><span v-else class="customer-avatar">{{initials(c.fullName)}}</span><strong>{{displayText(c.fullName)}}</strong></div></td><td>{{displayPhone(c.personalPhone||c.cellPhone||c.workPhone)||'Sin teléfono'}}<small>{{c.personalEmail||c.workEmail||'Sin email'}}</small></td><td><span class="page-tag">{{c.active?'Activo':'Suspendido'}}</span></td><td><button v-if="pending" class="btn secondary small-btn" :disabled="busy||!initialTarget" @click="initial(c.id)">Asignar taller</button><button v-else class="btn secondary small-btn" :disabled="busy" @click="select(c.id)">Ver ficha</button></td></tr></tbody></table><div v-else class="empty"><h3>Sin clientes en esta consulta</h3><p>Prueba otra búsqueda o registra un cliente.</p></div></div>
+   <nav v-if="result.totalPages" class="pagination" aria-label="Páginas de clientes"><button class="btn secondary small-btn" :disabled="loading||page<=1" @click="page--">Anterior</button><button v-for="p in pages" :key="p" class="btn secondary small-btn" :aria-current="p===page?'page':undefined" :disabled="loading||p===page" @click="page=p">{{p}}</button><button class="btn secondary small-btn" :disabled="loading||page>=result.totalPages" @click="page++">Siguiente</button><span class="field-hint">Página {{result.page}} de {{result.totalPages}} · Hasta 10 por página</span></nav>
   </section>
+  <section v-if="selected" :key="selected.id" class="customer-detail" aria-label="Ficha del cliente">
+   <header class="customer-detail-header"><div><p class="eyebrow">FICHA · #{{selected.id}} · {{selected.active?'ACTIVO':'SUSPENDIDO'}}</p><h2>{{displayText(selected.fullName)}}</h2></div><div class="button-row"><button class="btn secondary" :disabled="busy" @click="editing=!editing">{{editing?'Cancelar edición':'Editar cliente'}}</button><button class="btn secondary" :disabled="busy||editing" @click="status">{{selected.active?'Suspender':'Reactivar'}}</button><button class="icon-button" :disabled="busy" aria-label="Cerrar ficha" @click="selected=null"><Icon name="close"/></button></div></header>
+   <CustomerForm v-if="editing" :initial="selected" :workshops="workshops" :customer-id="selected.id" :workshop-id="Number(workshopId)" @created="saved" @cancel="editing=false" @busy="busy=$event" />
+   <div v-else class="customer-info-grid">
+    <section class="info-section"><h3>Identidad</h3><dl><div><dt>Nombre</dt><dd>{{displayText(selected.fullName)}}</dd></div><div><dt>CURP</dt><dd>{{displayIdentifier(selected.curp)||'No registrada'}}</dd></div><div><dt>RFC</dt><dd>{{displayIdentifier(selected.rfc)||'No registrado'}}</dd></div><div><dt>Nacimiento / edad</dt><dd>{{displayBirthDate(selected.birthDate)||'No registrado'}} · {{selected.age===null?'—':selected.age+' años'}}</dd></div><div><dt>Alias</dt><dd>{{displayText(selected.alias)||'Sin alias'}}</dd></div><div><dt>Contacto alternativo</dt><dd>{{displayText(selected.alternativeContactName)||'No registrado'}}</dd></div></dl></section>
+    <section class="info-section"><h3>Contacto</h3><dl><div><dt>Email</dt><dd>{{selected.personalEmail||'No registrado'}}</dd></div><div><dt>Email de trabajo</dt><dd>{{selected.workEmail||'No registrado'}}</dd></div><div><dt>Personal</dt><dd>{{displayPhone(selected.personalPhone)||'No registrado'}}</dd></div><div><dt>Celular</dt><dd>{{displayPhone(selected.cellPhone)||'No registrado'}}</dd></div><div><dt>Trabajo</dt><dd>{{displayPhone(selected.workPhone)||'No registrado'}}</dd></div></dl></section>
+    <section class="info-section"><h3>Dirección</h3><p>{{displayText(selected.street)}}<br>{{displayText(selected.neighborhood)}}<br>{{displayText(selected.municipality)}}, {{displayText(selected.state)}}<br>CP {{selected.postalCode}}</p></section>
+    <CustomerAssociations :id="selected.id" :workshop-id="Number(workshopId)" :associated="associated" :workshops="workshops" @changed="changed" @busy="busy=$event" />
+   </div>
+  </section>
+ </section>
 </template>

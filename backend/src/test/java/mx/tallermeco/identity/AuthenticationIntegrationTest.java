@@ -117,6 +117,40 @@ class AuthenticationIntegrationTest {
         }
     }
 
+    @Test void publicRegistrationKeepsClientRoleAndContactUniqueness() throws Exception {
+        var browser = new Browser(); browser.csrf();
+        String email = "registration-" + UUID.randomUUID() + "@example.invalid";
+        String phone = "55" + String.format("%08d", new java.security.SecureRandom().nextInt(100_000_000));
+        var body = new HashMap<String,Object>();
+        body.put("email", email.toUpperCase(Locale.ROOT)); body.put("password", PASSWORD);
+        body.put("name", "  María   Núñez  "); body.put("phone", "+52 " + phone);
+        body.put("role", "ADMIN");
+        var registered = request(browser, "POST", "/api/auth/register", body, true);
+        assertEquals(200, registered.statusCode(), registered.body());
+        long id = json.readTree(registered.body()).get("id").asLong();
+        assertEquals("CLIENT", jdbc.queryForObject("SELECT role_code FROM user_role WHERE user_id=?", String.class, id));
+        assertEquals("maría núñez", jdbc.queryForObject("SELECT full_name FROM customer WHERE user_id=?", String.class, id));
+        assertEquals(phone, jdbc.queryForObject("SELECT phone FROM customer WHERE user_id=?", String.class, id));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM customer_workshop cw JOIN customer c ON c.id=cw.customer_id WHERE c.user_id=?", Integer.class,id));
+        var login = browser.login(new Account(id,email,"maría núñez"), PASSWORD);
+        assertEquals(200, login.statusCode(), login.body());
+        assertEquals(403,browser.get("/api/customers?workshopId=1").statusCode());
+        var anonymous = new Browser(); anonymous.csrf();
+        String duplicateEmail = "registration-" + UUID.randomUUID() + "@example.invalid";
+        body.put("email", duplicateEmail);
+        assertEquals(409,request(anonymous,"POST","/api/auth/register",body,true).statusCode());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM app_user WHERE email=?",Integer.class,duplicateEmail));
+        body.put("phone", "55letters");
+        assertEquals(400,request(anonymous,"POST","/api/auth/register",body,true).statusCode());
+        body.put("phone", ""); body.put("name", "Nombre,1");
+        assertEquals(400,request(anonymous,"POST","/api/auth/register",body,true).statusCode());
+        body.put("name","María Núñez"); body.put("email","a..b@example.invalid");
+        assertEquals(400,request(anonymous,"POST","/api/auth/register",body,true).statusCode());
+        String csp=anonymous.get("/api/auth/csrf").headers().firstValue("content-security-policy").orElse("");
+        assertTrue(csp.contains("default-src 'self'"),csp);
+        assertTrue(csp.contains("frame-ancestors 'none'"),csp);
+    }
+
     @Test void anonymousRequestsAreUnauthorized() throws Exception {
         var browser = new Browser();
         assertEquals(401, browser.get("/api/auth/me").statusCode());
@@ -209,26 +243,28 @@ class AuthenticationIntegrationTest {
     }
     @Test void receptionistCanRegisterAndEditCustomersButCannotAdminister() throws Exception {
         var admin=authenticated(account("ADMIN",true));
-        var setup=request(admin,"POST","/api/workshops/setup",Map.of("companyName","Empresa prueba","workshopName","Taller prueba"),true);
-        assertEquals(200,setup.statusCode(),setup.body());
-        long workshop=json.readTree(setup.body()).get("workshopId").asLong();
+        jdbc.update("INSERT INTO company(name) VALUES ('empresa autenticación')");
+        long company=jdbc.queryForObject("SELECT MAX(id) FROM company",Long.class);
+        jdbc.update("INSERT INTO workshop(company_id,name) VALUES (?,'taller autenticación')",company);
+        long workshop=jdbc.queryForObject("SELECT MAX(id) FROM workshop",Long.class);
         String email="recepcion-"+UUID.randomUUID()+"@example.invalid";
         var created=request(admin,"POST","/api/employees",Map.of("email",email,"password",PASSWORD,"name","Recepción prueba","role","RECEPTIONIST"),true);
         assertEquals(200,created.statusCode(),created.body());
         long userId=json.readTree(created.body()).get("id").asLong();
         assertEquals("RECEPTIONIST",jdbc.queryForObject("SELECT role_code FROM user_role WHERE user_id=?",String.class,userId));
         var receptionist=authenticated(new Account(userId,email,"Recepción prueba"));
-        assertEquals(200,receptionist.get("/api/customers").statusCode());
+        assertEquals(200,request(admin,"PUT","/api/workshops/"+workshop+"/users/"+userId,Map.of("active",true),true).statusCode());
+        assertEquals(200,receptionist.get("/api/customers?workshopId="+workshop).statusCode());
         assertEquals(200,receptionist.get("/api/workshops").statusCode());
-        var customer=new HashMap<String,Object>();customer.put("fullName","Cliente de prueba");customer.put("personalEmail","customer-"+UUID.randomUUID()+"@example.invalid");customer.put("personalPhone","5512345678");
+        var customer=new HashMap<String,Object>();customer.put("givenName","Cliente");customer.put("paternalSurname","Prueba");customer.put("street","Calle uno");customer.put("neighborhood","Centro");customer.put("municipality","Ciudad");customer.put("state","México");customer.put("postalCode","01000");customer.put("personalEmail","customer-"+UUID.randomUUID()+"@example.invalid");customer.put("personalPhone","5532109876");
         var body=Map.of("customer",customer,"workshopId",workshop);
         var creation=request(receptionist,"POST","/api/customers",body,true);
         assertEquals(200,creation.statusCode(),creation.body());long id=json.readTree(creation.body()).get("id").asLong();
         assertEquals(409,request(receptionist,"POST","/api/customers",body,true).statusCode());
         customer.put("alias","Actualizado por recepción");
-        assertEquals(200,request(receptionist,"PUT","/api/customers/"+id,body,true).statusCode());
-        assertEquals("Actualizado por recepción",json.readTree(receptionist.get("/api/customers/"+id).body()).get("alias").asText());
-        assertEquals(403,request(receptionist,"DELETE","/api/customers/"+id,Map.of(),true).statusCode());
+        assertEquals(200,request(receptionist,"PUT","/api/customers/"+id,Map.of("customer",customer,"workshopId",workshop,"version",json.readTree(creation.body()).get("version").asLong()),true).statusCode());
+        assertEquals("actualizado por recepción",json.readTree(receptionist.get("/api/customers/"+id+"?workshopId="+workshop).body()).get("alias").asText());
+        assertEquals(405,request(receptionist,"DELETE","/api/customers/"+id,Map.of(),true).statusCode());
         assertEquals(403,request(receptionist,"POST","/api/workshops/setup",Map.of(),true).statusCode());
         assertEquals(403,request(receptionist,"POST","/api/employees",Map.of(),true).statusCode());
         assertEquals(403,receptionist.get("/api/reports").statusCode());

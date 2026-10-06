@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, useId, watch } from 'vue'
 import { api } from '../../api'
+import ValidatedInput from '../../modules/shared/ValidatedInput.vue'
+const props=defineProps<{errors?:Record<string,string>}>()
 
 type Address = { postalCode: string; street: string; neighborhood: string; municipality: string; state: string }
 type Settlement = Pick<Address, 'neighborhood' | 'municipality' | 'state'>
@@ -26,7 +28,7 @@ watch(() => address.value.postalCode, (raw, previous) => {
   settlements.value = []
   loading.value = false
   manual.value = false
-  const code = String(raw || '').trim()
+  const code = String(raw || '')
   message.value = 'Escribe un código postal mexicano de cinco dígitos para completar la ubicación.'
   if (!/^[0-9]{5}$/.test(code)) return
   const before = { ...address.value }
@@ -72,31 +74,28 @@ onUnmounted(() => { generation++; clearTimeout(timer) })
 
 <template>
   <div class="form-grid">
-    <label>Código postal
-      <input v-model="address.postalCode" maxlength="12" pattern="[A-Za-z0-9 -]{3,12}"
-        inputmode="numeric" autocomplete="postal-code" placeholder="Ej. 09810" :aria-describedby="`${id}-postal-help`">
-    </label>
+    <ValidatedInput v-model="address.postalCode" name="postalCode" label="Código postal" kind="postal" required placeholder="Ej. 01000" autocomplete="postal-code" :error="props.errors?.postalCode" />
     <div class="postal-help" :id="`${id}-postal-help`" role="status" aria-live="polite" :aria-busy="loading">
       <span class="postal-badge">{{ loading ? 'Consultando…' : 'Catálogo postal de México' }}</span>
       <p>{{ message }}</p>
     </div>
-    <label>Estado<input v-model="address.state" maxlength="120" autocomplete="address-level1" placeholder="Estado"></label>
-    <label>Municipio<input v-model="address.municipality" maxlength="120" autocomplete="address-level2" placeholder="Municipio o alcaldía"></label>
+    <ValidatedInput v-model="address.state" name="state" label="Estado" kind="name" required :max="120" autocomplete="address-level1" :error="props.errors?.state" />
+    <ValidatedInput v-model="address.municipality" name="municipality" label="Municipio" kind="name" required :max="120" autocomplete="address-level2" :error="props.errors?.municipality" />
     <label v-if="settlements.length && !manual" class="span-two">Colonia o asentamiento
-      <select :value="selected" @change="choose">
+      <select name="neighborhood" required :value="selected" :aria-invalid="!!props.errors?.neighborhood" @change="choose">
         <option value="" disabled>Selecciona una colonia</option>
         <option v-for="(item, index) in settlements" :key="index" :value="String(index)">
           {{ item.neighborhood }} · {{ item.municipality }}
         </option>
-      </select>
+      </select><small v-if="props.errors?.neighborhood" class="field-error" role="alert">{{props.errors.neighborhood}}</small>
     </label>
-    <label v-else class="span-two">Colonia<input v-model="address.neighborhood" maxlength="120" placeholder="Colonia o barrio"></label>
+    <ValidatedInput v-else v-model="address.neighborhood" class="span-two" name="neighborhood" label="Colonia" kind="address" required :max="120" :error="props.errors?.neighborhood" />
     <div v-if="settlements.length" class="span-two">
       <button type="button" class="text-link" @click="manual = !manual">
         {{ manual ? 'Elegir del catálogo' : 'Capturar otra colonia manualmente' }}
       </button>
     </div>
-    <label class="span-two">Calle y número<input v-model="address.street" maxlength="180" autocomplete="street-address" placeholder="Calle, número exterior e interior"></label>
+    <ValidatedInput v-model="address.street" class="span-two" name="street" label="Calle y número" kind="address" required :max="180" autocomplete="street-address" placeholder="Calle, número exterior e interior" :error="props.errors?.street" />
   </div>
 </template>
 

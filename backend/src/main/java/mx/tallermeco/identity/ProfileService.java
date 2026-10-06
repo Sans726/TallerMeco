@@ -28,8 +28,7 @@ public class ProfileService {
         db.update("UPDATE app_user SET display_name=?,phone=?,birth_date=?,bio=? WHERE id=?",
             name, profile.phone() == null ? "" : profile.phone().trim(), profile.birthDate(),
             profile.bio() == null ? "" : profile.bio().trim(), userId);
-        db.update("UPDATE customer SET full_name=?,phone=?,version=version+1 WHERE user_id=?",
-            name, profile.phone() == null ? "" : profile.phone().trim(), userId);
+        // Account preferences must not bypass managed customer validation or workshop authorization.
         db.update("UPDATE employee SET full_name=? WHERE user_id=?", name, userId);
         audit.record(userId, "PROFILE_UPDATED", "user", userId, Map.of());
     }

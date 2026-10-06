@@ -1,5 +1,8 @@
 # TALLERMECO — P2-02
 
+> Antecedente de diseño. El estado vigente V6, los contratos y las verificaciones están en [Entrega UC-CV-02](entrega-uc-cv-02.md) y [Administración de clientes y talleres](administracion-clientes-talleres.md).
+
+
 Trabaja únicamente en:
 
 `/home/sun/Projects/TallerMeco/`

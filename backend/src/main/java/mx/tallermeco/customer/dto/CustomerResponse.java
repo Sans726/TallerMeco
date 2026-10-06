@@ -22,13 +22,16 @@ public record CustomerResponse(
         String state,
         String postalCode,
         boolean active,
-        long version
+        long version,
+        String givenName,String paternalSurname,String maternalSurname,String curp,String rfc,String cellPhone
 ) {
+    public Integer age() { return birthDate==null?null:java.time.Period.between(birthDate,LocalDate.now()).getYears(); }
+    @com.fasterxml.jackson.annotation.JsonProperty("age") public Integer getAge() {return age();}
     public static CustomerResponse from(Customer customer) {
         return new CustomerResponse(customer.id(), customer.userId(), customer.fullName(), customer.alias(),
                 customer.alternativeContactName(), customer.birthDate(), customer.personalPhone(),
                 customer.workPhone(), customer.personalEmail(), customer.workEmail(), customer.photoReference(),
                 customer.street(), customer.neighborhood(), customer.municipality(), customer.state(),
-                customer.postalCode(), customer.active(), customer.version());
+                customer.postalCode(), customer.active(), customer.version(),customer.givenName(),customer.paternalSurname(),customer.maternalSurname(),customer.curp(),customer.rfc(),customer.cellPhone());
     }
 }

@@ -1,5 +1,8 @@
 # TallerMeco — Fase 2
 
+> Antecedente de diseño. El estado vigente V6, los contratos y las verificaciones están en [Entrega UC-CV-02](entrega-uc-cv-02.md) y [Administración de clientes y talleres](administracion-clientes-talleres.md).
+
+
 > **Documento de alcance e historial.** Las secciones de arquitectura, autenticación y clientes describen los objetivos y criterios definidos para esta fase. Para el avance vigente, usa el [estado del proyecto](estado-del-proyecto.md).
 
 ## Avance documentado

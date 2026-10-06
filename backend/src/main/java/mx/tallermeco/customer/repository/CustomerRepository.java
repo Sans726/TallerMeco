@@ -1,165 +1,70 @@
 package mx.tallermeco.customer.repository;
 
-import mx.tallermeco.customer.dto.CreateCustomerRequest;
-import mx.tallermeco.customer.dto.CustomerResponse;
-import mx.tallermeco.customer.dto.WorkshopResponse;
+import mx.tallermeco.customer.dto.*;
 import mx.tallermeco.customer.model.Customer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
-
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
+import java.sql.*;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-/** All SQL for Customer and CustomerWorkshop persistence lives here. */
 @Repository
 public class CustomerRepository {
-    private static final String CUSTOMER_COLUMNS = """
-            id,user_id,full_name,alias,alternative_contact_name,birth_date,
-            personal_phone,work_phone,personal_email,work_email,photo_reference,
-            street,neighborhood,municipality,state,postal_code,active,version
-            """;
-
-    private final JdbcTemplate jdbc;
-
-    public CustomerRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
-
-    public Optional<CustomerResponse> findById(long id) {
-        return one("SELECT " + CUSTOMER_COLUMNS + " FROM customer WHERE id=?", id);
-    }
-
-    public Optional<CustomerResponse> findByPersonalEmail(String email) {
-        String normalized = normalizeEmail(email);
-        if (normalized == null) return Optional.empty();
-        return one("SELECT " + CUSTOMER_COLUMNS + " FROM customer WHERE personal_email_normalized=?", normalized);
-    }
-
-    public Optional<CustomerResponse> findByPersonalPhone(String phone) {
-        String normalized = normalizePhone(phone);
-        if (normalized == null) return Optional.empty();
-        return one("SELECT " + CUSTOMER_COLUMNS + " FROM customer WHERE personal_phone_normalized=?", normalized);
-    }
-
-    public Optional<CustomerResponse> findByNameAndBirthDate(String fullName, LocalDate birthDate) {
-        if (fullName == null || birthDate == null) return Optional.empty();
-        return one("SELECT " + CUSTOMER_COLUMNS + " FROM customer WHERE full_name=? AND birth_date=?", fullName, birthDate);
-    }
-
-    public boolean existsByPersonalEmail(String email) {
-        String normalized = normalizeEmail(email);
-        return normalized != null && exists("SELECT 1 FROM customer WHERE personal_email_normalized=? LIMIT 1", normalized);
-    }
-
-    public boolean existsByPersonalPhone(String phone) {
-        String normalized = normalizePhone(phone);
-        return normalized != null && exists("SELECT 1 FROM customer WHERE personal_phone_normalized=? LIMIT 1", normalized);
-    }
-
-    public boolean existsByNameAndBirthDate(String fullName, LocalDate birthDate) {
-        return fullName != null && birthDate != null
-                && exists("SELECT 1 FROM customer WHERE full_name=? AND birth_date=? LIMIT 1", fullName, birthDate);
-    }
-
-    public long create(CreateCustomerRequest request) {
-        String sql = """
-                INSERT INTO customer(
-                    full_name,alias,alternative_contact_name,birth_date,personal_phone,work_phone,
-                    personal_email,work_email,photo_reference,street,neighborhood,municipality,state,postal_code
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """;
-        GeneratedKeyHolder keys = new GeneratedKeyHolder();
-        jdbc.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, request.fullName());
-            statement.setString(2, request.alias());
-            statement.setString(3, request.alternativeContactName());
-            setDate(statement, 4, request.birthDate());
-            statement.setString(5, request.personalPhone());
-            statement.setString(6, request.workPhone());
-            statement.setString(7, request.personalEmail());
-            statement.setString(8, request.workEmail());
-            statement.setString(9, request.photoReference());
-            statement.setString(10, request.street());
-            statement.setString(11, request.neighborhood());
-            statement.setString(12, request.municipality());
-            statement.setString(13, request.state());
-            statement.setString(14, request.postalCode());
-            return statement;
-        }, keys);
-        Number key = keys.getKey();
-        if (key == null) throw new IllegalStateException("Customer insert did not return an id");
-        return key.longValue();
-    }
-
-    public void update(long id, CreateCustomerRequest request) {
-        jdbc.update("""
-                UPDATE customer SET full_name=?,alias=?,alternative_contact_name=?,birth_date=?,personal_phone=?,work_phone=?,
-                personal_email=?,work_email=?,street=?,neighborhood=?,municipality=?,state=?,postal_code=?,version=version+1 WHERE id=?
-                """, request.fullName(), request.alias(), request.alternativeContactName(), request.birthDate(), request.personalPhone(),
-                request.workPhone(), request.personalEmail(), request.workEmail(), request.street(), request.neighborhood(),
-                request.municipality(), request.state(), request.postalCode(), id);
-    }
-
-    public void associateWithWorkshop(long customerId, long workshopId) {
-        jdbc.update("INSERT INTO customer_workshop(customer_id,workshop_id) VALUES (?,?)", customerId, workshopId);
-    }
-
-    public void updatePhotoReference(long customerId, String reference) {
-        jdbc.update("UPDATE customer SET photo_reference=?, version=version+1 WHERE id=?", reference, customerId);
-    }
-
-    public boolean isAssociatedWithWorkshop(long customerId, long workshopId) {
-        return exists("SELECT 1 FROM customer_workshop WHERE customer_id=? AND workshop_id=? LIMIT 1",
-                customerId, workshopId);
-    }
-
-    public List<WorkshopResponse> findWorkshops(long customerId) {
-        return jdbc.query("""
-                SELECT w.id,w.company_id,w.name,w.active
-                FROM workshop w JOIN customer_workshop cw ON cw.workshop_id=w.id
-                WHERE cw.customer_id=? ORDER BY w.id
-                """, (rs, rowNum) -> new WorkshopResponse(rs.getLong("id"), rs.getLong("company_id"),
-                rs.getString("name"), rs.getBoolean("active")), customerId);
-    }
-
-    private Optional<CustomerResponse> one(String sql, Object... args) {
-        List<Customer> customers = jdbc.query(sql, this::mapCustomer, args);
-        return customers.stream().findFirst().map(CustomerResponse::from);
-    }
-
-    private boolean exists(String sql, Object... args) {
-        return !jdbc.queryForList(sql, args).isEmpty();
-    }
-
-    private Customer mapCustomer(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-        Date birthDate = rs.getDate("birth_date");
-        return new Customer(rs.getLong("id"), (Long) rs.getObject("user_id"), rs.getString("full_name"),
-                rs.getString("alias"), rs.getString("alternative_contact_name"),
-                birthDate == null ? null : birthDate.toLocalDate(), rs.getString("personal_phone"),
-                rs.getString("work_phone"), rs.getString("personal_email"), rs.getString("work_email"),
-                rs.getString("photo_reference"), rs.getString("street"), rs.getString("neighborhood"),
-                rs.getString("municipality"), rs.getString("state"), rs.getString("postal_code"),
-                rs.getBoolean("active"), rs.getLong("version"));
-    }
-
-    private static void setDate(PreparedStatement statement, int index, LocalDate date) throws java.sql.SQLException {
-        if (date == null) statement.setDate(index, null); else statement.setDate(index, Date.valueOf(date));
-    }
-
-    public static String normalizeEmail(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim().toLowerCase(java.util.Locale.ROOT);
-    }
-
-    public static String normalizePhone(String value) {
-        if (value == null || value.isBlank()) return null;
-        String normalized = value.replaceAll("[^0-9]", "");
-        return normalized.isBlank() ? null : normalized;
-    }
+ private final JdbcTemplate jdbc;
+ public CustomerRepository(JdbcTemplate jdbc){this.jdbc=jdbc;}
+ public Optional<CustomerResponse> findById(long id){return one("SELECT c.* FROM customer c WHERE c.id=?",id);}
+ public Optional<CustomerResponse> findScoped(long id,long workshopId){return one("SELECT c.* FROM customer c JOIN customer_workshop cw ON cw.customer_id=c.id WHERE c.id=? AND cw.workshop_id=? AND cw.active=true",id,workshopId);}
+ public Optional<CustomerResponse> lockScoped(long id,long workshopId){return one("SELECT c.* FROM customer c JOIN customer_workshop cw ON cw.customer_id=c.id WHERE c.id=? AND cw.workshop_id=? AND cw.active=true FOR UPDATE",id,workshopId);}
+ public Optional<CustomerResponse> lockUnassigned(long id){return one("SELECT c.* FROM customer c WHERE c.id=? AND NOT EXISTS(SELECT 1 FROM customer_workshop cw WHERE cw.customer_id=c.id AND cw.active=true) FOR UPDATE",id);}
+ public Optional<CustomerResponse> byPhoto(String reference){return one("SELECT c.* FROM customer c WHERE c.photo_reference=?",reference);}
+ public CustomerPage page(CustomerListQuery q){return page(q,false);}
+ public CustomerPage unassigned(CustomerListQuery q){return page(q,true);}
+ private CustomerPage page(CustomerListQuery q,boolean unassigned){
+  String direction="DESC".equals(q.direction())?"DESC":"ASC";
+  // sort column is selected from this whitelist, never interpolated from a request.
+  String column=switch(q.sort()){case "name"->"c.full_name";case "id"->"c.id";default->throw new IllegalArgumentException("Orden inválido");};
+  String filter=" FROM customer c JOIN customer_workshop cw ON cw.customer_id=c.id WHERE cw.workshop_id=? AND cw.active=true AND (?='' OR LOCATE(?,c.full_name)>0 OR LOCATE(?,COALESCE(c.personal_email,''))>0 OR LOCATE(?,COALESCE(c.personal_phone,''))>0 OR LOCATE(?,COALESCE(c.cell_phone,''))>0 OR LOCATE(?,COALESCE(c.work_phone,''))>0)";
+  if(unassigned)filter=filter.replace(" JOIN customer_workshop cw ON cw.customer_id=c.id WHERE cw.workshop_id=? AND cw.active=true"," WHERE NOT EXISTS(SELECT 1 FROM customer_workshop cw WHERE cw.customer_id=c.id AND cw.active=true)");
+  Object[] args=unassigned?new Object[]{q.query(),q.query(),q.query(),q.query(),q.query(),q.query()}:new Object[]{q.workshopId(),q.query(),q.query(),q.query(),q.query(),q.query(),q.query()};
+  long count=Objects.requireNonNull(jdbc.queryForObject("SELECT COUNT(*)"+filter,Long.class,args));
+  var pageArgs=new ArrayList<>(Arrays.asList(args));pageArgs.add(q.pageSize());pageArgs.add(((long)q.page()-1)*q.pageSize());
+  var items=jdbc.query("SELECT c.*"+filter+" ORDER BY "+column+" "+direction+",c.id "+direction+" LIMIT ? OFFSET ?",this::map,pageArgs.toArray());
+  return new CustomerPage(items.stream().map(CustomerResponse::from).toList(),q.page(),q.pageSize(),count,(count+q.pageSize()-1)/q.pageSize());
+ }
+ public long create(CustomerData r){
+  var keys=new GeneratedKeyHolder();
+  jdbc.update(conn->{var s=conn.prepareStatement("INSERT INTO customer(full_name,alias,alternative_contact_name,birth_date,personal_phone,work_phone,personal_email,work_email,street,neighborhood,municipality,state,postal_code,given_name,paternal_surname,maternal_surname,curp,rfc,cell_phone) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",Statement.RETURN_GENERATED_KEYS);set(s,r);return s;},keys);
+  long id=Objects.requireNonNull(keys.getKey()).longValue();return id;
+ }
+ private static void set(PreparedStatement s,CustomerData r)throws SQLException{
+  Object[] values={r.fullName(),r.alias(),r.alternativeContactName(),r.birthDate(),r.personalPhone(),r.workPhone(),r.personalEmail(),r.workEmail(),r.street(),r.neighborhood(),r.municipality(),r.state(),r.postalCode(),r.givenName(),r.paternalSurname(),r.maternalSurname(),r.curp(),r.rfc(),r.cellPhone()};
+  for(int i=0;i<values.length;i++)s.setObject(i+1,values[i]);
+ }
+ public void update(long id,CustomerData r){
+  jdbc.update("UPDATE customer SET full_name=?,alias=?,alternative_contact_name=?,birth_date=?,personal_phone=?,work_phone=?,personal_email=?,work_email=?,street=?,neighborhood=?,municipality=?,state=?,postal_code=?,given_name=?,paternal_surname=?,maternal_surname=?,curp=?,rfc=?,cell_phone=?,phone=?,version=version+1 WHERE id=?",r.fullName(),r.alias(),r.alternativeContactName(),r.birthDate(),r.personalPhone(),r.workPhone(),r.personalEmail(),r.workEmail(),r.street(),r.neighborhood(),r.municipality(),r.state(),r.postalCode(),r.givenName(),r.paternalSurname(),r.maternalSurname(),r.curp(),r.rfc(),r.cellPhone(),r.personalPhone(),id);
+ }
+ public void active(long id,boolean active){jdbc.update("UPDATE customer SET active=?,version=version+1 WHERE id=?",active,id);}
+ public void associateWithWorkshop(long id,long workshop){jdbc.update("INSERT INTO customer_workshop(customer_id,workshop_id) VALUES (?,?)",id,workshop);}
+ public void associate(long id,long workshop){jdbc.update("INSERT INTO customer_workshop(customer_id,workshop_id,active) VALUES (?,?,true) ON DUPLICATE KEY UPDATE active=true",id,workshop);}
+ public void associationActive(long id,long workshop,boolean active){jdbc.update("UPDATE customer_workshop SET active=? WHERE customer_id=? AND workshop_id=?",active,id,workshop);}
+ public boolean isAssociatedWithWorkshop(long id,long workshop){return exists("SELECT 1 FROM customer_workshop WHERE customer_id=? AND workshop_id=? AND active=true",id,workshop);}
+ public long activeAssociations(long id){return jdbc.queryForObject("SELECT COUNT(*) FROM customer_workshop cw JOIN workshop w ON w.id=cw.workshop_id JOIN company co ON co.id=w.company_id WHERE cw.customer_id=? AND cw.active=true AND w.active=true AND co.active=true",Long.class,id);}
+ public List<Map<String,Object>> scopedWorkshops(long id,long user,boolean admin){return jdbc.queryForList("SELECT w.id,w.company_id companyId,w.name,w.active,cw.active associationActive FROM workshop w JOIN customer_workshop cw ON cw.workshop_id=w.id WHERE cw.customer_id=? AND (? OR EXISTS(SELECT 1 FROM user_workshop uw WHERE uw.workshop_id=w.id AND uw.user_id=? AND uw.active=true)) ORDER BY w.name,w.id",id,admin,user);}
+ public List<WorkshopResponse> findWorkshops(long id){return jdbc.query("SELECT w.id,w.company_id,w.name,w.active FROM workshop w JOIN customer_workshop cw ON cw.workshop_id=w.id WHERE cw.customer_id=? ORDER BY w.id",(rs,n)->new WorkshopResponse(rs.getLong(1),rs.getLong(2),rs.getString(3),rs.getBoolean(4)),id);}
+ public void updatePhotoReference(long id,String ref){jdbc.update("UPDATE customer SET photo_reference=?,version=version+1 WHERE id=?",ref,id);}
+ public Optional<CustomerResponse> findByPersonalEmail(String email){return one("SELECT c.* FROM customer c WHERE personal_email_normalized=?",normalizeEmail(email));}
+ public Optional<CustomerResponse> findByPersonalPhone(String phone){return one("SELECT c.* FROM customer c WHERE personal_phone_normalized=?",normalizePhone(phone));}
+ public Optional<CustomerResponse> findByNameAndBirthDate(String name,LocalDate date){return one("SELECT c.* FROM customer c WHERE full_name=? AND birth_date=?",name,date);}
+ public boolean existsByPersonalEmail(String email){return findByPersonalEmail(email).isPresent();}
+ public boolean existsByPersonalPhone(String phone){return findByPersonalPhone(phone).isPresent();}
+ public boolean existsByNameAndBirthDate(String name,LocalDate date){return findByNameAndBirthDate(name,date).isPresent();}
+ private Optional<CustomerResponse> one(String sql,Object...args){return jdbc.query(sql,this::map,args).stream().findFirst().map(CustomerResponse::from);}
+ private boolean exists(String sql,Object...args){return !jdbc.queryForList(sql,args).isEmpty();}
+ private Customer map(ResultSet rs,int row)throws SQLException{
+  java.sql.Date date=rs.getDate("birth_date");
+  return new Customer(rs.getLong("id"),(Long)rs.getObject("user_id"),rs.getString("full_name"),rs.getString("alias"),rs.getString("alternative_contact_name"),date==null?null:date.toLocalDate(),rs.getString("personal_phone"),rs.getString("work_phone"),rs.getString("personal_email"),rs.getString("work_email"),rs.getString("photo_reference"),rs.getString("street"),rs.getString("neighborhood"),rs.getString("municipality"),rs.getString("state"),rs.getString("postal_code"),rs.getBoolean("active"),rs.getLong("version"),rs.getString("given_name"),rs.getString("paternal_surname"),rs.getString("maternal_surname"),rs.getString("curp"),rs.getString("rfc"),rs.getString("cell_phone"));
+ }
+ public static String normalizeEmail(String v){return v==null||v.isBlank()?null:v.trim().toLowerCase(Locale.ROOT);}
+ public static String normalizePhone(String v){if(v==null||v.isBlank())return null;String digits=v.replaceAll("[^0-9]","");return digits.length()==12&&digits.startsWith("52")?digits.substring(2):digits;}
 }

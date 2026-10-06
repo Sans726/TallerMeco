@@ -16,14 +16,14 @@ Esta tabla sirve como reporte de avance: indica qué entregables están implemen
 | Perfil y cambio de contraseña | ✅ Implementado en código | [ProfileService.java](../backend/src/main/java/mx/tallermeco/identity/ProfileService.java), [ProfilePhotoService.java](../backend/src/main/java/mx/tallermeco/identity/ProfilePhotoService.java), [V5](../backend/src/main/resources/db/migration/V5__account_profile.sql) | Revisar los casos de perfil y fotos al modificar la cuenta. |
 | Clientes: listado, ficha, alta y edición | ✅ Implementado en código | [módulo de clientes](../backend/src/main/java/mx/tallermeco/customer/), [módulo frontend](../frontend/src/modules/customers/) | Añadir mejoras según el flujo que defina el taller. |
 | Dirección por código postal | ✅ Implementado en código | [Decisión, fuente y funcionamiento](direcciones-codigo-postal.md), [PostalCatalog.java](../backend/src/main/java/mx/tallermeco/address/PostalCatalog.java), [AddressFields.vue](../frontend/src/components/address/AddressFields.vue) | Revisar el flujo en navegador y mantener vigente el catálogo. |
-| Validación de duplicados y asociaciones | ✅ Implementado en código | [CustomerService.java](../backend/src/main/java/mx/tallermeco/customer/CustomerService.java), [V4](../backend/src/main/resources/db/migration/V4__customer_workshop_model.sql) | Acordar si se requieren reglas adicionales para datos compartidos entre talleres. |
-| Taller y empresa inicial | 🟡 Parcial | [WorkshopSetupController.java](../backend/src/main/java/mx/tallermeco/customer/WorkshopSetupController.java), [WorkshopSetupService.java](../backend/src/main/java/mx/tallermeco/customer/WorkshopSetupService.java) | Crear una pantalla de configuración inicial; hoy el alta se hace por API una sola vez y requiere ADMIN. |
+| Validación de duplicados y asociaciones | ✅ Implementado en código | [CustomerService.java](../backend/src/main/java/mx/tallermeco/customer/CustomerService.java), [V6](../backend/src/main/resources/db/migration/V6__customer_administration.sql) | V6 agrega aislamiento, duplicados de identidad/contactos y asociaciones auditadas; consultar los contratos del incremento. |
+| Administración de talleres | ✅ Implementado y probado | [Gestión de talleres](../backend/src/main/java/mx/tallermeco/workshop/management/), [contratos y evidencia](administracion-clientes-talleres.md) | Completar los campos que no se conocían en talleres históricos. |
 | Vehículos y órdenes de servicio | 🟡 Base funcional | [módulo de taller](../backend/src/main/java/mx/tallermeco/workshop/), [vistas frontend](../frontend/src/views/Orders.vue) | Completar y documentar el recorrido de recepción a entrega con sus permisos y estados. |
 | Inventario y pagos | 🟡 Base funcional | [módulo de inventario](../backend/src/main/java/mx/tallermeco/inventory/), [V1](../backend/src/main/resources/db/migration/V1__core_schema.sql), [V2](../backend/src/main/resources/db/migration/V2__movement_returns.sql) | Validar los recorridos de compra, consumo, devolución, cobro y reembolso. |
 | Reportes y auditoría | 🟡 Base funcional | [ReportController.java](../backend/src/main/java/mx/tallermeco/reporting/ReportController.java), [Reports.vue](../frontend/src/views/Reports.vue), [Records.vue](../frontend/src/views/Records.vue) | Confirmar resultados contra casos de datos conocidos y documentar filtros. |
 | Esquema y reglas de integridad | ✅ Implementado en código | [carpeta de migraciones](../backend/src/main/resources/db/migration/) | Definir impuestos, descuentos y política de costeo antes de ampliar finanzas. |
-| Pruebas automáticas | 🟡 Hay pruebas; ejecución reciente no verificada aquí | [pruebas Java](../backend/src/test/), [prueba frontend](../tests/auth-frontend.mjs), [script backend](../scripts/test-auth-backend.sh) | Ejecutar las suites en el entorno preparado antes de una entrega funcional. |
-| Diagramas técnicos | ✅ Disponibles | [Arquitectura](diagrams/architecture/architecture.svg), [Autenticación](diagrams/authentication/authentication.svg), [Registro de clientes](diagrams/customer-registration/customer-registration.svg), [Modelo de datos](diagrams/data-model/data-model.svg) | Actualizar los diagramas cuando cambien módulos o relaciones. |
+| Pruebas de este incremento | ✅ Ejecutadas el 2026-10-05 | [pruebas Java](../backend/src/test/), [validaciones frontend](../tests/customer-validation.mjs), [runner aislado](../scripts/test-customer-admin.py) | 30 backend y 14 frontend aprobadas; no constituyen una cobertura completa de módulos legacy. |
+| Diagramas técnicos | ✅ Disponibles | [Arquitectura](diagrams/architecture/architecture.svg), [Autenticación](diagrams/authentication/authentication.svg), [Registro de clientes](diagrams/customer-registration/customer-registration.svg), [Modelo de datos](diagrams/data-model/data-model.svg) | Cuatro HTML autónomos y SVG actualizados a V6; [índice en tablas](README.md#diagramas-técnicos). |
 | Documentación de ejecución | 🟡 Entorno local preparado documentado; alta desde cero parcial | [README](../README.md), [db-init.py](../scripts/db-init.py) y configuración Flyway | Versionar el procedimiento de base vacía y baseline Flyway. |
 
 ### Significado de los estados
@@ -49,21 +49,9 @@ El módulo de clientes tiene capas explícitas de Controller, Service y Reposito
 
 ## Primer taller
 
-La API permite registrar la empresa y el taller inicial con una sola operación:
+ADMIN puede registrar talleres completos desde la sección **Talleres**. El alta usa `POST /api/workshops`; crea la empresa desde la razón social si no existe una activa. El endpoint anterior `/api/workshops/setup` se retiró para evitar altas incompletas. Los talleres históricos se conservan y pueden completarse mediante edición.
 
-- **Ruta:** `POST /api/workshops/setup`
-- **Acceso:** requiere sesión autenticada con rol ADMIN.
-- **Regla:** solo permite crear el primer taller; rechaza la operación si ya hay uno.
-- **Cuerpo JSON:**
-
-```json
-{
-  "companyName": "Nombre de la empresa",
-  "workshopName": "Nombre del taller"
-}
-```
-
-El formulario administrativo para este paso queda pendiente. El arranque de la aplicación puede crear la cuenta ADMIN inicial cuando `ADMIN_INITIAL_PASSWORD` está configurada, la base está vacía y la contraseña cumple el mínimo de 12 caracteres.
+Para contratos, autorización por taller y formatos, consulta [administración de clientes y talleres](administracion-clientes-talleres.md).
 
 ## Pruebas disponibles
 
@@ -73,11 +61,11 @@ El repositorio contiene:
 - Prueba de autenticación del cliente web en `tests/auth-frontend.mjs`.
 - Script `scripts/test-auth-backend.sh`, que prepara un esquema de prueba aislado y ejecuta Maven.
 
-La documentación de Fase 2 registra verificaciones realizadas durante trabajo previo. Esta actualización documental no volvió a compilar ni ejecutar las pruebas. Para una entrega evaluada, anota la fecha, comando, resultado y entorno de la ejecución más reciente.
+El 5 de octubre de 2026 se ejecutaron las suites de este incremento: 30 pruebas backend y 14 frontend aprobadas. Se compiló Vue/TypeScript y el paquete Java, y se verificaron formularios, SEPOMEX, paginación y asociaciones en navegador sobre datos temporales. Las pruebas HTTP cubren permisos, aislamiento y CSRF. Los módulos legacy de órdenes, inventario y pagos no tuvieron una verificación integral nueva.
 
 ## Próximas metas recomendadas
 
-1. Completar la configuración inicial de empresa y taller desde la interfaz.
+1. Completar identidad y dirección desconocidas de registros históricos y asignar los talleres de recepción desde ADMIN.
 2. Recorrer órdenes de servicio de principio a fin y cubrir cambios de estado y permisos con pruebas.
 3. Validar inventario y pagos con datos de ejemplo controlados en la base de prueba.
 4. Definir impuestos, descuentos y costeo antes de presentar indicadores financieros como resultado contable.
