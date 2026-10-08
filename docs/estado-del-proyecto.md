@@ -23,7 +23,7 @@ Esta tabla sirve como reporte de avance: indica qué entregables están implemen
 | Reportes y auditoría | 🟡 Base funcional | [ReportController.java](../backend/src/main/java/mx/tallermeco/reporting/ReportController.java), [Reports.vue](../frontend/src/views/Reports.vue), [Records.vue](../frontend/src/views/Records.vue) | Confirmar resultados contra casos de datos conocidos y documentar filtros. |
 | Esquema y reglas de integridad | ✅ Implementado en código | [carpeta de migraciones](../backend/src/main/resources/db/migration/) | Definir impuestos, descuentos y política de costeo antes de ampliar finanzas. |
 | Pruebas de este incremento | ✅ Ejecutadas el 2026-10-05 | [pruebas Java](../backend/src/test/), [validaciones frontend](../tests/customer-validation.mjs), [runner aislado](../scripts/test-customer-admin.py) | 30 backend y 14 frontend aprobadas; no constituyen una cobertura completa de módulos legacy. |
-| Diagramas técnicos | ✅ Disponibles | [Arquitectura](diagrams/architecture/architecture.svg), [Autenticación](diagrams/authentication/authentication.svg), [Registro de clientes](diagrams/customer-registration/customer-registration.svg), [Modelo de datos](diagrams/data-model/data-model.svg) | Cuatro HTML autónomos y SVG actualizados a V6; [índice en tablas](README.md#diagramas-técnicos). |
+| Diagramas técnicos | ✅ Disponibles | [Arquitectura](diagrams/architecture/architecture.svg), [Autenticación](diagrams/authentication/authentication.svg), [Registro de clientes](diagrams/customer-registration/customer-registration.svg), [Modelo de datos](diagrams/data-model/data-model.svg) | Seis HTML autónomos y SVG actualizados a V7; [índice en tablas](README.md#diagramas-técnicos). |
 | Documentación de ejecución | 🟡 Entorno local preparado documentado; alta desde cero parcial | [README](../README.md), [db-init.py](../scripts/db-init.py) y configuración Flyway | Versionar el procedimiento de base vacía y baseline Flyway. |
 
 ### Significado de los estados
@@ -88,3 +88,13 @@ El 5 de octubre de 2026 se ejecutaron las suites de este incremento: 30 pruebas 
 ### Modelo de datos
 
 ![Modelo de datos](diagrams/data-model/data-model.svg)
+
+## UC-CV-03 · 8 de octubre de 2026
+
+| Área | Estado / evidencia |
+|---|---|
+| Estatus clientes/vehículos | Catálogos separados, protegidos, abiertos a ADMIN y consultables por recepción |
+| Clientes | Estatus como fuente única, filtro paginado y edición en Modal reutilizando CustomerForm |
+| Vehículos | Módulo propio, paginación SQL, VIN único, scope por cliente/taller y en servicio derivado |
+| V7 | Conserva V1–V6; migra booleanos e identificadores, sin reset ni datos inventados |
+| Pruebas y límites actuales | [Entrega UC-CV-03](entrega-uc-cv-03.md#verificación) |

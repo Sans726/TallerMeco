@@ -14,8 +14,8 @@ import java.util.*;
 
 @Service
 public class CustomerService {
- private final CustomerRepository repository;private final Actor actor;private final Audit audit;private final WorkshopAccess access;
- public CustomerService(CustomerRepository repository,Actor actor,Audit audit,WorkshopAccess access){this.repository=repository;this.actor=actor;this.audit=audit;this.access=access;}
+ private final CustomerRepository repository;private final Actor actor;private final Audit audit;private final WorkshopAccess access;private final mx.tallermeco.status.StatusRepository statuses;
+ public CustomerService(CustomerRepository repository,Actor actor,Audit audit,WorkshopAccess access,mx.tallermeco.status.StatusRepository statuses){this.repository=repository;this.actor=actor;this.audit=audit;this.access=access;this.statuses=statuses;}
  @Transactional public CustomerResponse create(CustomerData request,long workshopId){
   access.require(workshopId,true);var normalized=normalize(request);
   try{long id=repository.create(normalized);repository.associateWithWorkshop(id,workshopId);audit.record(actor.id(),"CUSTOMER_CREATED","customer",id,Map.of("workshopId",workshopId));return find(id,workshopId);}
@@ -28,7 +28,15 @@ public class CustomerService {
   var normalized=normalize(request.customer());
   try{repository.update(id,normalized);audit.record(actor.id(),"CUSTOMER_UPDATED","customer",id,Map.of("workshopId",request.workshopId()));return find(id,request.workshopId());}catch(DataIntegrityViolationException ex){throw duplicate();}
  }
- @Transactional public CustomerResponse active(long id,long workshopId,boolean active){access.require(workshopId,true);repository.lockScoped(id,workshopId).orElseThrow(CustomerService::missing);repository.active(id,active);audit.record(actor.id(),active?"CUSTOMER_REACTIVATED":"CUSTOMER_SUSPENDED","customer",id,Map.of("workshopId",workshopId));return find(id,workshopId);}
+ @Transactional public CustomerResponse status(long id,long workshopId,Long statusId,Long version){
+  access.require(workshopId,true);var current=repository.lockScoped(id,workshopId).orElseThrow(CustomerService::missing);
+  if(statusId==null||statusId<=0)InputRules.fail("statusId","Selecciona un estatus");
+  if(version==null||version!=current.version())throw new ResponseStatusException(HttpStatus.CONFLICT,"La ficha cambió; vuelve a abrirla");
+  var next=statuses.get(mx.tallermeco.status.StatusRepository.Kind.CUSTOMER,statusId,true);
+  if(current.statusId()==next.id())return current;
+  repository.status(id,next.id());audit.record(actor.id(),"CUSTOMER_STATUS_CHANGED","customer",id,Map.of("workshopId",workshopId,"previousStatusId",current.statusId(),"previousStatus",current.statusCode(),"statusId",next.id(),"status",next.code()));return find(id,workshopId);
+ }
+
  public List<Map<String,Object>> workshops(long id,long workshopId){find(id,workshopId);return repository.scopedWorkshops(id,actor.id(),actor.is("ADMIN"));}
  @Transactional public void associate(long id,long source,long target,String mode){
   access.require(source,true);access.require(target,true);repository.lockScoped(id,source).orElseThrow(CustomerService::missing);
@@ -49,9 +57,9 @@ public class CustomerService {
  }
  @Transactional(readOnly=true) public CustomerPage list(CustomerListQuery q){
   access.require(q.workshopId(),true);
-  if(q.page()<1||q.pageSize()<1||q.pageSize()>10||!Set.of("name","id").contains(q.sort())||!Set.of("ASC","DESC").contains(q.direction()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Página, tamaño u orden inválidos (máximo 10 clientes)");
+  if(q.statusId()!=null&&q.statusId()<=0||q.page()<1||q.pageSize()<1||q.pageSize()>10||!Set.of("name","id").contains(q.sort())||!Set.of("ASC","DESC").contains(q.direction()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Página, tamaño u orden inválidos (máximo 10 clientes)");
   String query=InputRules.text("query",q.query(),160,false);
-  return repository.page(new CustomerListQuery(q.workshopId(),q.page(),q.pageSize(),q.sort(),q.direction(),query==null?"":query));
+  return repository.page(new CustomerListQuery(q.workshopId(),q.page(),q.pageSize(),q.sort(),q.direction(),query==null?"":query,q.statusId()));
  }
  @Transactional(readOnly=true) public CustomerPage unassigned(int page,int pageSize,String direction,String query){
   actor.admin();if(page<1||pageSize<1||pageSize>10||!Set.of("ASC","DESC").contains(direction))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Página, tamaño u orden inválidos");

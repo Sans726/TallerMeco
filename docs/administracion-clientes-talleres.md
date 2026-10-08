@@ -1,5 +1,6 @@
 # Administración de clientes y talleres — UC-CV-02
 
+> Documento histórico de V6. Para contratos actuales de estatus, canonicalización y vehículos, consultar [UC-CV-03](entrega-uc-cv-03.md).
 Incremento verificado el 5 de octubre de 2026. Conserva Spring JDBC, MariaDB, Flyway, sesiones, CSRF y CSP. No incorpora JPA ni JWT.
 
 ## Arquitectura y permisos

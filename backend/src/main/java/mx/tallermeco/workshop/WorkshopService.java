@@ -8,8 +8,8 @@ import java.util.*;
 import java.math.BigDecimal;
 @Service
 public class WorkshopService {
- public final Store db; private final Actor actor; private final Audit audit;
- public WorkshopService(Store db,Actor actor,Audit audit){this.db=db;this.actor=actor;this.audit=audit;}
+ public final Store db; private final Actor actor; private final Audit audit;private final mx.tallermeco.vehicle.VehicleService vehicles;
+ public WorkshopService(Store db,Actor actor,Audit audit,mx.tallermeco.vehicle.VehicleService vehicles){this.db=db;this.actor=actor;this.audit=audit;this.vehicles=vehicles;}
  public String scope(){return actor.is("ADMIN")?"1=1":actor.is("CLIENT")?"o.customer_id="+actor.customer():"EXISTS(SELECT 1 FROM order_assignment a WHERE a.order_id=o.id AND a.employee_id="+actor.employee()+")";}
  public Map<String,Object> order(long id,boolean lock){
   var o=db.one("SELECT o.* FROM service_order o WHERE o.id=? AND "+scope()+(lock?" FOR UPDATE":""),id);return o;
@@ -36,8 +36,8 @@ public class WorkshopService {
   if(actor.is("CLIENT")) { @SuppressWarnings("unchecked") var history=(List<Map<String,Object>>)o.get("history"); history.forEach(h->{h.remove("actor");h.remove("actor_id");}); }
   var t=new LinkedHashMap<>(totals(id)); if(!actor.is("ADMIN"))t.remove("direct_cost");o.put("totals",t);return o;
  }
- @Transactional public long create(long vehicleId,String complaint,Integer odometer){actor.admin();
-  var v=db.one("SELECT * FROM vehicle WHERE id=? AND active=true",vehicleId);
+ @Transactional public long create(long vehicleId,long workshopId,String complaint,Integer odometer){actor.admin();vehicles.get(vehicleId,workshopId);
+  var v=db.one("SELECT v.* FROM vehicle v JOIN vehicle_status vs ON vs.id=v.status_id JOIN customer c ON c.id=v.customer_id JOIN customer_status cs ON cs.id=c.status_id WHERE v.id=? AND vs.allows_operations=true AND cs.allows_operations=true FOR UPDATE",vehicleId);
   long id=db.id("INSERT INTO service_order(vehicle_id,customer_id,complaint,odometer_km,created_by) VALUES (?,?,?,?,?)",vehicleId,v.get("customer_id"),complaint,odometer,actor.id());
   db.update("INSERT INTO order_status_history(order_id,new_status,actor_id,reason) VALUES (?,'RECEIVED',?,'Recepción de vehículo')",id,actor.id());
   audit.record(actor.id(),"ORDER_CREATED","order",id,Map.of("vehicleId",vehicleId));return id;

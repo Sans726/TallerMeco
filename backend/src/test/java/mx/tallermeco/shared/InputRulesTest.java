@@ -19,9 +19,11 @@ class InputRulesTest {
  }
  @Test void mexicanIdentifiersValidateStructureAndDates(){
   var birth=LocalDate.of(1990,2,3);
-  assertEquals("gode900203hdfmnn01",InputRules.curp("GODE900203HDFMNN01",birth));
-  assertEquals("gode900203abc",InputRules.rfc("rfc","GODE900203ABC",false,birth));
-  assertEquals("abc900203a12",InputRules.rfc("rfc","ABC900203A12",true,null));
+  assertEquals("GODE900203HDFMNN01",InputRules.curp("gode900203hdfmnn01",birth));
+  assertEquals("GODE900203ABC",InputRules.rfc("rfc","gode900203abc",false,birth));
+  assertEquals("GODE900203HDFMNN01",InputRules.curp("GODE900203HDFMNN01",birth));
+  assertEquals("GODE900203ABC",InputRules.rfc("rfc","GODE900203ABC",false,birth));
+  assertEquals("ABC900203A12",InputRules.rfc("rfc","ABC900203A12",true,null));
   for(String raw:new String[]{"GODE900230HDFMNN01","GODE900203HXXMNN01","GODE900203HDFMNN0!","GODE900203HDFMNN0"," GODE900203HDFMNN01"})assertThrows(FieldValidationException.class,()->InputRules.curp(raw,null));
   for(String raw:new String[]{"GODE900230ABC","ABCDE900203ABC","ABC900203!!1","GODE900203 ABC"})assertThrows(FieldValidationException.class,()->InputRules.rfc("rfc",raw,false,null));
   assertThrows(FieldValidationException.class,()->InputRules.curp("GODE900203HDFMNN01",birth.plusDays(1)));

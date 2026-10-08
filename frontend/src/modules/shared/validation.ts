@@ -1,10 +1,10 @@
-export type InputKind='name'|'business'|'address'|'postal'|'phone'|'email'|'curp'|'rfc'|'date'|'text'
+export type InputKind='name'|'business'|'address'|'postal'|'phone'|'email'|'curp'|'rfc'|'date'|'vin'|'plate'|'automotive'|'year'|'odometer'|'statusCode'|'text'
 export type FieldErrors=Record<string,string>
-export const limits:Record<InputKind,number>={name:160,business:160,address:180,postal:5,phone:24,email:254,curp:18,rfc:13,date:10,text:160}
+export const limits:Record<InputKind,number>={name:160,business:160,address:180,postal:5,phone:24,email:254,curp:18,rfc:13,date:10,vin:17,plate:20,automotive:80,year:4,odometer:10,statusCode:40,text:160}
 export const canonical=(raw:string)=>raw.normalize('NFC').trim().replace(/ +/g,' ').toLowerCase().replace(/’/g,"'")
 export function acceptsInput(kind:InputKind,value:string,max=limits[kind]):boolean {
  if(value.length>max||/[\u0000-\u001f\u007f]/.test(value))return false
- const patterns:Record<InputKind,RegExp>={name:/^[\p{L}\p{M} '\u2019-]*$/u,business:/^[\p{L}\p{M}0-9 .,&'\u2019()/\-]*$/u,address:/^[\p{L}\p{M}0-9 .,#º°'\u2019/&()\-]*$/u,postal:/^[0-9]*$/,phone:/^(?:\+?[0-9 ()-]*)$/,email:/^[^\s]*$/,curp:/^[a-zA-Z0-9]*$/,rfc:/^[a-zA-ZñÑ&0-9]*$/,date:/^[0-9-]*$/,text:/^[^\u0000-\u001f\u007f]*$/}
+ const patterns:Record<InputKind,RegExp>={vin:/^[A-HJ-NPR-Za-hj-npr-z0-9]*$/,plate:/^[A-Za-z0-9 -]*$/,automotive:/^[\p{L}\p{M}0-9 .,&'()/+\-]*$/u,year:/^[0-9]*$/,odometer:/^[0-9]*$/,statusCode:/^[A-Za-z0-9_]*$/,name:/^[\p{L}\p{M} '\u2019-]*$/u,business:/^[\p{L}\p{M}0-9 .,&'\u2019()/\-]*$/u,address:/^[\p{L}\p{M}0-9 .,#º°'\u2019/&()\-]*$/u,postal:/^[0-9]*$/,phone:/^(?:\+?[0-9 ()-]*)$/,email:/^[^\s]*$/,curp:/^[a-zA-Z0-9]*$/,rfc:/^[a-zA-ZñÑ&0-9]*$/,date:/^[0-9-]*$/,text:/^[^\u0000-\u001f\u007f]*$/}
  return patterns[kind].test(value)
 }
 export function validDate(value:string):boolean {
@@ -47,6 +47,12 @@ export function validate(kind:InputKind,raw:string,required=false,max=limits[kin
  if(!raw||!raw.trim())return required?'Este campo es obligatorio':''
  const value=canonical(raw)
  switch(kind){
+  case 'vin':return /^[A-HJ-NPR-Z0-9]{17}$/.test(raw.trim().toUpperCase())?'':'VIN: exactamente 17 caracteres, sin I, O, Q ni signos'
+  case 'plate':{const p=raw.trim().replace(/ /g,'').toUpperCase();return p.length>=3&&p.length<=20&&/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(p)?'':'Placa: de 3 a 20 letras, números o guiones entre grupos'}
+  case 'automotive':return /^[\p{L}\p{M}0-9 .,&'()/+\-]+$/u.test(value)&&/[\p{L}0-9]/u.test(value)?'':'Usa un nombre comercial con letras, números y separadores razonables'
+  case 'year':return /^[0-9]{4}$/.test(raw)&&Number(raw)>=1900&&Number(raw)<=new Date().getFullYear()+1?'':`Año: cuatro dígitos, entre 1900 y ${new Date().getFullYear()+1}`
+  case 'odometer':return /^[0-9]{1,10}$/.test(raw)&&Number(raw)<=2147483647?'':'Kilometraje: entero entre 0 y 2147483647, sin signos ni decimales'
+  case 'statusCode':return /^[A-Z][A-Z0-9_]{1,39}$/.test(raw.trim().toUpperCase())?'':'Usa 2–40 letras, números o guiones bajos; inicia con letra'
   case 'postal':return /^[0-9]{5}$/.test(raw)?'':'El código postal debe contener exactamente 5 dígitos, sin espacios ni signos'
   case 'name':return /^[\p{L}\p{M}]+(?:[ '\u2019-][\p{L}\p{M}]+)*$/u.test(value)?'':'Usa letras, acentos, espacios, apóstrofes o guiones entre palabras'
   case 'phone':return /^(?:\+52[ -]?)?(?:[0-9]{10}|[0-9]{2}[ -][0-9]{4}[ -][0-9]{4}|\([0-9]{2}\)[ ]?[0-9]{4}[ -][0-9]{4})$/.test(raw.trim())?'':'Usa 10 dígitos mexicanos, por ejemplo 5512345678 o +52 55 1234 5678'
@@ -81,3 +87,9 @@ export function validateWorkshop(form:Record<string,unknown>):FieldErrors {
  for(const [key,kind] of Object.entries(rules)){const message=validate(kind,String(form[key]??''),true);if(message)errors[key]=message}return errors
 }
 export function focusInvalid(form:HTMLElement|null,errors:FieldErrors){const fields=form?.querySelectorAll<HTMLElement>('[name]');if(fields)Array.from(fields).find(field=>errors[field.getAttribute('name')??''])?.focus()}
+
+export function validateVehicle(form:Record<string,unknown>):FieldErrors {
+ const errors:FieldErrors={}
+ const rules:Record<string,[InputKind,number,boolean]>={vin:['vin',17,true],plate:['plate',20,true],make:['automotive',60,true],model:['automotive',80,true],trim:['automotive',80,true],color:['automotive',60,true],year:['year',4,true],odometer:['odometer',10,false]}
+ for(const [key,[kind,max,required]] of Object.entries(rules)){const message=validate(kind,String(form[key]??''),required,max);if(message)errors[key]=message}return errors
+}

@@ -73,7 +73,7 @@ class CustomerAdministrationIntegrationTest {
   get(self,"/api/customers/unassigned",403);
   var data=client("first");data.put("birthDate","1990-02-03");data.put("curp","GODE900203HDFMNN01");data.put("rfc","GODE900203ABC");data.put("personalPhone","+52 55 1234 5678");
   var created=expect(reception,"POST","/api/customers",Map.of("customer",data,"workshopId",a),200);customer=created.get("id").asLong();
-  assertEquals("maría josé muñoz o'neill",created.get("fullName").asText());assertEquals("5512345678",created.get("personalPhone").asText());assertEquals("gode900203hdfmnn01",created.get("curp").asText());assertTrue(created.get("age").asInt()>=36);
+  assertEquals("maría josé muñoz o'neill",created.get("fullName").asText());assertEquals("5512345678",created.get("personalPhone").asText());assertEquals("GODE900203HDFMNN01",created.get("curp").asText());assertTrue(created.get("age").asInt()>=36);
   for(String key:List.of("curp","rfc","personalEmail","personalPhone")){var duplicate=client(UUID.randomUUID().toString());duplicate.put("givenName","Otra");duplicate.put(key,data.get(key));expect(admin,"POST","/api/customers",Map.of("customer",duplicate,"workshopId",b),409);}
   var phoneDuplicate=client("cell-duplicate");phoneDuplicate.put("cellPhone","55-1234-5678");expect(admin,"POST","/api/customers",Map.of("customer",phoneDuplicate,"workshopId",b),409);
   var workEmailDuplicate=client("work-email-duplicate");workEmailDuplicate.put("workEmail",data.get("personalEmail"));expect(admin,"POST","/api/customers",Map.of("customer",workEmailDuplicate,"workshopId",b),409);
@@ -83,7 +83,7 @@ class CustomerAdministrationIntegrationTest {
   get(reception,"/api/customers",400);
   get(reception,"/api/customers/"+customer+"/workshops?workshopId="+b,404);
   expect(reception,"PUT","/api/customers/"+customer,Map.of("customer",data,"workshopId",b,"version",0),404);
-  expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",b,"active",false),404);
+  expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",b,"statusId",2,"version",0),404);
   expect(reception,"POST","/api/customers/"+customer+"/workshops",Map.of("workshopId",b,"targetWorkshopId",a,"mode","ASSOCIATE"),404);
   expect(reception,"POST","/api/customers/"+customer+"/workshops",Map.of("workshopId",a,"targetWorkshopId",other,"mode","ASSOCIATE"),404);
   long before=jdbc.queryForObject("SELECT COUNT(*) FROM customer",Long.class);
@@ -96,9 +96,9 @@ class CustomerAdministrationIntegrationTest {
   var noContact=client("none");noContact.remove("personalEmail");expect(reception,"POST","/api/customers",Map.of("customer",noContact,"workshopId",a),400);
   data.put("alias","  Ana   María ");var updated=expect(reception,"PUT","/api/customers/"+customer,Map.of("customer",data,"workshopId",a,"version",created.get("version").asLong()),200);assertEquals("ana maría",updated.get("alias").asText());
   expect(reception,"PUT","/api/customers/"+customer,Map.of("customer",data,"workshopId",a,"version",0),409);
-  var withoutCsrf=helper.request(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"active",false),false);assertEquals(403,withoutCsrf.statusCode());
-  assertFalse(expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"active",false),200).get("active").asBoolean());assertTrue(get(reception,context(customer,a),200).has("id"));
-  assertTrue(expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"active",true),200).get("active").asBoolean());
+  var withoutCsrf=helper.request(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"statusId",2,"version",updated.get("version").asLong()),false);assertEquals(403,withoutCsrf.statusCode());
+  assertFalse(expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"statusId",2,"version",updated.get("version").asLong()),200).get("allowsOperations").asBoolean());assertTrue(get(reception,context(customer,a),200).has("id"));
+  assertTrue(expect(reception,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",a,"statusId",1,"version",updated.get("version").asLong()+1),200).get("allowsOperations").asBoolean());
   expect(reception,"PATCH","/api/customers/"+customer+"/workshops/"+a,Map.of("workshopId",a,"active",false),409);
   expect(reception,"POST","/api/customers/"+customer+"/workshops",Map.of("workshopId",a,"targetWorkshopId",b,"mode","ASSOCIATE"),200);get(reception,context(customer,b),200);
   expect(reception,"PATCH","/api/customers/"+customer+"/workshops/"+b,Map.of("workshopId",a,"active",false),200);get(reception,context(customer,b),404);
@@ -111,7 +111,7 @@ class CustomerAdministrationIntegrationTest {
   assertEquals(404,upload(reception,"/api/customers/"+customer+"/photo?workshopId="+a,png,"a.png","image/png").statusCode());
   assertEquals(400,upload(reception,"/api/customers/"+customer+"/photo?workshopId="+b,"bad image".getBytes(),"a.png","image/png").statusCode());
   var secondPhoto=upload(reception,"/api/customers/"+customer+"/photo?workshopId="+b,png,"a.png","image/png");assertEquals(200,secondPhoto.statusCode());assertFalse(Files.exists(photos.resolve(ref)));assertEquals(404,reception.get("/api/customers/photos/"+ref+"?workshopId="+b).statusCode());
-  for(String role:List.of("MECHANIC","CLIENT")){var denied=helper.authenticated(helper.account(role,true));get(denied,"/api/customers?workshopId="+b,403);get(denied,context(customer,b),403);expect(denied,"POST","/api/customers",Map.of("customer",client("denied"),"workshopId",b),403);expect(denied,"PUT","/api/customers/"+customer,Map.of("customer",data,"workshopId",b,"version",0),403);expect(denied,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",b,"active",false),403);expect(denied,"POST","/api/customers/"+customer+"/workshops",Map.of("workshopId",b,"targetWorkshopId",a,"mode","REASSIGN"),403);assertEquals(403,upload(denied,"/api/customers/"+customer+"/photo?workshopId="+b,png,"a.png","image/png").statusCode());}
+  for(String role:List.of("MECHANIC","CLIENT")){var denied=helper.authenticated(helper.account(role,true));get(denied,"/api/customers?workshopId="+b,403);get(denied,context(customer,b),403);expect(denied,"POST","/api/customers",Map.of("customer",client("denied"),"workshopId",b),403);expect(denied,"PUT","/api/customers/"+customer,Map.of("customer",data,"workshopId",b,"version",0),403);expect(denied,"PATCH","/api/customers/"+customer+"/status",Map.of("workshopId",b,"statusId",2,"version",0),403);expect(denied,"POST","/api/customers/"+customer+"/workshops",Map.of("workshopId",b,"targetWorkshopId",a,"mode","REASSIGN"),403);assertEquals(403,upload(denied,"/api/customers/"+customer+"/photo?workshopId="+b,png,"a.png","image/png").statusCode());}
   expect(reception,"POST","/api/workshops",Map.of(),403);expect(reception,"PUT","/api/workshops/"+b,Map.of(),403);get(reception,"/api/workshops/access-users",403);
   // Fresh workshop A now has exactly 25 clients, all server-side pages are bounded and scoped.
   for(int i=0;i<25;i++){var c=client("page-"+i);c.put("givenName",String.valueOf((char)('A'+i))+"na");expect(admin,"POST","/api/customers",Map.of("customer",c,"workshopId",a),200);}
@@ -126,7 +126,7 @@ class CustomerAdministrationIntegrationTest {
   var f2=java.util.concurrent.CompletableFuture.supplyAsync(()->{try{return helper.request(browserTwo,"POST","/api/customers",Map.of("customer",simultaneous,"workshopId",a),true).statusCode();}catch(Exception ex){throw new RuntimeException(ex);}});
   assertEquals(Set.of(200,409),Set.of(f1.join(),f2.join()));
   expect(admin,"PUT","/api/workshops/"+b+"/users/"+receptionist.id(),Map.of("active",false),200);get(reception,context(customer,b),404);
-  for(String action:List.of("CUSTOMER_CREATED","CUSTOMER_UPDATED","CUSTOMER_SUSPENDED","CUSTOMER_REACTIVATED","CUSTOMER_ASSOCIATED","CUSTOMER_REASSIGNED","WORKSHOP_CREATED"))assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM audit_event WHERE action=?",Long.class,action)>0,action);
+  for(String action:List.of("CUSTOMER_CREATED","CUSTOMER_UPDATED","CUSTOMER_STATUS_CHANGED","CUSTOMER_ASSOCIATED","CUSTOMER_REASSIGNED","WORKSHOP_CREATED"))assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM audit_event WHERE action=?",Long.class,action)>0,action);
  }
  @Test void workshopsValidateDuplicatesBannersAndInactiveTargets()throws Exception{
   long id=createWorkshop("Taller imágenes","DDD900203D01");var current=get(admin,"/api/workshops/"+id,200);long companyId=current.get("companyId").asLong();

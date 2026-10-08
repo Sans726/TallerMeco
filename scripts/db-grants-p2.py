@@ -8,6 +8,8 @@ for raw_host in hosts:
     for table in ('company','workshop','customer_workshop','user_workshop'):
         privileges='SELECT,INSERT,UPDATE' if table!='company' else 'SELECT,INSERT'
         statements.append(f"GRANT {privileges} ON tallermeco.{table} TO 'taller_app'@'{host}';")
+    for table in ('customer_status','vehicle_status'):
+        statements.append(f"GRANT SELECT,INSERT,UPDATE,DELETE ON tallermeco.{table} TO 'taller_app'@'{host}';")
     # Registry is maintained by definer triggers; the runtime cannot alter uniqueness reservations.
     statements.append(f"GRANT SELECT ON tallermeco.customer_contact TO 'taller_app'@'{host}';")
 subprocess.run(['podman','exec','-i','tallermeco-db','mariadb','--no-defaults','--user=root'],input=('\n'.join(statements)+'\n').encode(),check=True)

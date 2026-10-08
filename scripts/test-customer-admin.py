@@ -38,7 +38,7 @@ try:
                     else: raise RuntimeError('Preview did not become ready')
                     # Exercise the UI using the same table-specific write privileges as the application.
                     grants=[f"REVOKE ALL PRIVILEGES ON `{schema}`.* FROM '{app}'@'%';",f"GRANT SELECT ON `{schema}`.* TO '{app}'@'%';"]
-                    for table,rights in {'app_user':'INSERT,UPDATE','user_role':'INSERT,DELETE','employee':'INSERT,UPDATE','customer':'INSERT,UPDATE','company':'INSERT','workshop':'INSERT,UPDATE','customer_workshop':'INSERT,UPDATE','user_workshop':'INSERT,UPDATE','audit_event':'INSERT','password_reset_token':'INSERT,UPDATE','vehicle':'INSERT,UPDATE','service_order':'INSERT,UPDATE','order_assignment':'INSERT,UPDATE','work_entry':'INSERT,UPDATE','part':'INSERT','inventory_movement':'INSERT','payment':'INSERT','order_status_history':'INSERT'}.items():
+                    for table,rights in {'customer_status':'INSERT,UPDATE,DELETE','vehicle_status':'INSERT,UPDATE,DELETE','app_user':'INSERT,UPDATE','user_role':'INSERT,DELETE','employee':'INSERT,UPDATE','customer':'INSERT,UPDATE','company':'INSERT','workshop':'INSERT,UPDATE','customer_workshop':'INSERT,UPDATE','user_workshop':'INSERT,UPDATE','audit_event':'INSERT','password_reset_token':'INSERT,UPDATE','vehicle':'INSERT,UPDATE','service_order':'INSERT,UPDATE','order_assignment':'INSERT,UPDATE','work_entry':'INSERT,UPDATE','part':'INSERT','inventory_movement':'INSERT','payment':'INSERT','order_status_history':'INSERT'}.items():
                         grants.append(f"GRANT {rights} ON `{schema}`.{table} TO '{app}'@'%';")
                     sql(' '.join(grants))
                     print('UI preview ready: http://127.0.0.1:18081/#/login',flush=True)

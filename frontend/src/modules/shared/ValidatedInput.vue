@@ -20,7 +20,7 @@ function input(e:Event){const el=e.target as HTMLInputElement;if(!accepts(el.val
 </script>
 <template>
  <label :for="id">{{label}} <span v-if="required" class="required-mark">*</span>
-  <input :id="id" :name="name" :value="displayed" :type="type" :required="required" :maxlength="maximum" :minlength="kind==='postal'?5:kind==='date'?10:undefined" :pattern="kind==='postal'?'[0-9]{5}':kind==='date'?'[0-9]{2}/[0-9]{2}/[0-9]{4}':undefined" :inputmode="kind==='postal'||kind==='phone'||kind==='date'?'numeric':kind==='email'?'email':undefined" :placeholder="placeholder||(kind==='date'?'DD/MM/AAAA':undefined)" :autocomplete="autocomplete" :aria-invalid="!!message" :aria-describedby="`${id}-error`" @beforeinput="before" @paste="paste" @input="input" @blur="touched=true">
+  <input :id="id" :name="name" :value="displayed" :type="type" :required="required" :maxlength="maximum" :minlength="kind==='postal'?5:kind==='date'?10:undefined" :pattern="kind==='postal'?'[0-9]{5}':kind==='date'?'[0-9]{2}/[0-9]{2}/[0-9]{4}':undefined" :inputmode="kind==='postal'||kind==='phone'||kind==='date'||kind==='year'||kind==='odometer'?'numeric':kind==='email'?'email':undefined" :placeholder="placeholder||(kind==='date'?'DD/MM/AAAA':undefined)" :autocomplete="autocomplete" :aria-invalid="!!message" :aria-describedby="`${id}-error`" @beforeinput="before" @paste="paste" @input="input" @blur="touched=true">
   <small v-if="kind==='date'" class="field-hint">Día/mes/año (DD/MM/AAAA)</small>
   <small v-if="message" :id="`${id}-error`" class="field-error" role="alert">{{message}}</small>
  </label>

@@ -78,7 +78,7 @@ No ejecutes el inicializador contra una base existente: se detiene si detecta `t
 
 | Acción | Comando |
 |---|---|
-| Sincronizar acceso DB si cambió la IP del contenedor | `python scripts/db-sync-host.py` y, después de V6, `python scripts/db-grants-p2.py` |
+| Sincronizar acceso DB si cambió la IP del contenedor | `python scripts/db-sync-host.py` y, después de V7, `python scripts/db-grants-p2.py` |
 | Comprobar MariaDB y la respuesta CSRF | `./scripts/db-check.sh` y `curl --fail http://127.0.0.1:8080/api/auth/csrf` |
 | Guardar un respaldo SQL | `./scripts/db-backup.sh` |
 | Detener la aplicación | `./scripts/app-stop.sh` |
@@ -97,7 +97,7 @@ node --test tests/auth-frontend.mjs tests/customer-validation.mjs
 ./scripts/test-auth-backend.sh
 ```
 
-El script backend crea dos esquemas y usuarios temporales en MariaDB para integración y compatibilidad V5→V6, ejecuta Maven y los elimina al finalizar. No reinicia la base real. El 5 de octubre de 2026 pasaron 30 pruebas backend y 14 frontend; también se compiló frontend/backend y se recorrieron los formularios en un entorno aislado. Véase [administración de clientes y talleres](docs/administracion-clientes-talleres.md).
+El script backend crea dos esquemas y usuarios temporales en MariaDB para integración y compatibilidad V5→V6→V7, ejecuta Maven y los elimina al finalizar. No reinicia la base real. El 5 de octubre de 2026 pasaron 30 pruebas backend y 14 frontend; también se compiló frontend/backend y se recorrieron los formularios en un entorno aislado. Véase [administración de clientes y talleres](docs/administracion-clientes-talleres.md).
 
 ## Datos y reglas importantes
 
@@ -118,3 +118,12 @@ El script backend crea dos esquemas y usuarios temporales en MariaDB para integr
 - [Alcance de Fase 2](docs/FASE%202%20%E2%80%94%20TallerMeco.md)
 - [Modelo de clientes y talleres](docs/Astra%20%E2%80%94%20P2-02%20Modelo%20de%20clientes%20y%20talleres.md)
 - [Diagramas del sistema](docs/diagrams/)
+
+## UC-CV-03 — Estatus y vehículos
+
+| Incremento | Estado |
+|---|---|
+| Clientes | Catálogo separado, suspensión/reactivación auditada, filtro por estatus y edición en modal |
+| Vehículos | Directorio especializado paginado por taller, VIN único, formulario estricto y estatus propio |
+| Flyway V7 | Canonicalización uppercase CURP/RFC; active → status_id; conservación de datos e historial |
+| Documentación vigente | [Entrega UC-CV-03](docs/entrega-uc-cv-03.md); [seis diagramas HTML/SVG](docs/README.md#diagramas-técnicos) |

@@ -16,6 +16,7 @@ public class Errors {
  @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class) ResponseEntity<?> concurrent(){return ResponseEntity.status(409).body(Map.of("message","Otra operación modificó estos datos. Recarga la ficha e intenta nuevamente."));}
  @ExceptionHandler(AccessDeniedException.class) ResponseEntity<?> denied(){return ResponseEntity.status(403).body(Map.of("message","No tienes permiso para esta operación"));}
  @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class) ResponseEntity<?> malformed(org.springframework.http.converter.HttpMessageNotReadableException e){
+  for(Throwable nested=e.getCause();nested!=null;nested=nested.getCause())if(nested instanceof FieldValidationException fieldError)return fields(fieldError);
   Throwable cause=e.getCause();
   if(cause instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException format && !format.getPath().isEmpty()){
    String field=format.getPath().getLast().getFieldName();

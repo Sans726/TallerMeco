@@ -5,6 +5,9 @@ import Auth from './views/Auth.vue'
 import Dashboard from './views/Dashboard.vue'
 import Orders from './views/Orders.vue'
 import OrderDetail from './views/OrderDetail.vue'
+import VehicleListView from './modules/vehicles/views/VehicleListView.vue'
+import PersonalVehicleView from './modules/vehicles/views/PersonalVehicleView.vue'
+import StatusCatalogView from './modules/statuses/views/StatusCatalogView.vue'
 import Records from './views/Records.vue'
 import Reports from './views/Reports.vue'
 import Account from './views/Account.vue'
@@ -19,7 +22,9 @@ const router=createRouter({history:createWebHashHistory(),scrollBehavior:()=>({t
  {path:'/',component:Dashboard},{path:'/orders',component:Orders},{path:'/orders/:id',component:OrderDetail},
  {path:'/workshops',component:WorkshopListView},
  {path:'/customers',component:CustomerListView},{path:'/customers/new',component:CustomerCreateView},
- ...['vehicles','employees','inventory','audit'].map(p=>({path:'/'+p,component:Records})),
+ {path:'/vehicles',component:VehicleListView,beforeEnter:()=>['ADMIN','RECEPTIONIST'].includes(session.user?.role)?true:'/my-vehicles'},
+ {path:'/my-vehicles',component:PersonalVehicleView},{path:'/statuses',component:StatusCatalogView},
+ ...['employees','inventory','audit'].map(p=>({path:'/'+p,component:Records})),
  {path:'/reports',component:Reports},{path:'/account',component:Account},{path:'/:pathMatch(.*)*',redirect:'/'}
 ]})
 let loaded=false
@@ -27,9 +32,9 @@ router.beforeEach(async to=>{if(!loaded){try{session.user=await api('/auth/me')}
  const publicRoute=['/login','/register','/forgot','/reset'].includes(to.path)
  if(!publicRoute&&!session.user)return '/login'
  if(session.user&&to.path==='/login')return session.user.role==='RECEPTIONIST'?'/customers':'/'
- if(session.user?.role==='RECEPTIONIST'&&!publicRoute&&to.path!=='/account'&&!to.path.startsWith('/customers'))return '/customers'
+ if(session.user?.role==='RECEPTIONIST'&&!publicRoute&&to.path!=='/account'&&!to.path.startsWith('/customers')&&to.path!=='/vehicles')return '/customers'
  if(to.path.startsWith('/customers')&&!['ADMIN','RECEPTIONIST'].includes(session.user?.role))return '/'
- if(session.user?.role!=='ADMIN'&&['/employees','/reports','/audit','/workshops'].includes(to.path))return '/'
+ if(session.user?.role!=='ADMIN'&&['/employees','/reports','/audit','/workshops','/statuses'].includes(to.path))return '/'
  if(session.user?.role==='CLIENT'&&to.path==='/inventory')return '/'
 })
 createApp(App).use(router).mount('#app')

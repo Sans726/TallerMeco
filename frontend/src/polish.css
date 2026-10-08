@@ -312,3 +312,5 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:#b42318}
 .checkbox-label{display:flex;align-items:center;gap:8px}.checkbox-label input{width:auto}
 .table-toolbar label{font-size:12px;min-width:150px}.info-section dd{overflow-wrap:anywhere}
 @media(max-width:700px){.table-toolbar{flex-wrap:wrap}.table-toolbar label,.table-toolbar .search{width:100%}.association-list li{flex-wrap:wrap}.workshop-banner.hero img{height:180px}.customer-detail-header{flex-wrap:wrap}.pagination{gap:5px}}
+
+.modal.modal-wide{width:min(1200px,96vw);max-width:1200px}.modal-wide .modal-body{max-height:78vh;overflow:auto}.modal-wide .customer-form{margin:0}.modal-wide .form-section{box-shadow:none}

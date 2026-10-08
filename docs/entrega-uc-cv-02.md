@@ -1,5 +1,6 @@
 # Entrega UC-CV-02 — clientes y talleres
 
+> Documento histórico de V6. Para contratos actuales de estatus, canonicalización y vehículos, consultar [UC-CV-03](entrega-uc-cv-03.md).
 ## Funciones y decisiones
 
 | Área | Implementación | Fuente |

@@ -6,6 +6,7 @@ Esta carpeta reúne el estado vigente del trabajo, las decisiones del modelo y e
 
 | Documento | Para qué sirve |
 |---|---|
+| [Entrega UC-CV-03](entrega-uc-cv-03.md) | Estatus, vehículos, validaciones, permisos, migración V7 y verificación actual. |
 | [Entrega UC-CV-02 en tablas](entrega-uc-cv-02.md) | Funciones, archivos, pruebas ejecutadas, operación y límites comprobados. |
 | [Administración de clientes y talleres](administracion-clientes-talleres.md) | Contratos, permisos, formatos, migración V6 y verificaciones del incremento. |
 | [Estado del proyecto](estado-del-proyecto.md) | Reporte de avance por entregable, evidencia, pendientes y diagramas actuales. |
@@ -16,13 +17,15 @@ Esta carpeta reúne el estado vigente del trabajo, las decisiones del modelo y e
 
 ## Diagramas técnicos
 
-| Diagrama vigente V6 | HTML autónomo (abrir localmente) | SVG (vista en GitHub) |
+| Diagrama vigente V7 | HTML autónomo (abrir localmente) | SVG (vista en GitHub) |
 |---|---|---|
 | Arquitectura | [HTML](diagrams/architecture/architecture.html) | [SVG](diagrams/architecture/architecture.svg) |
 | Autenticación y alcance | [HTML](diagrams/authentication/authentication.html) | [SVG](diagrams/authentication/authentication.svg) |
 | Registro y administración de clientes | [HTML](diagrams/customer-registration/customer-registration.html) | [SVG](diagrams/customer-registration/customer-registration.svg) |
 | Modelo de datos | [HTML](diagrams/data-model/data-model.html) | [SVG](diagrams/data-model/data-model.svg) |
-| Índice de diagramas | [HTML](diagrams/index.html) | Cuatro archivos SVG versionados |
+| Catálogos y transiciones | [HTML](diagrams/status-catalogs/status-catalogs.html) | [SVG](diagrams/status-catalogs/status-catalogs.svg) |
+| Registro y administración de vehículos | [HTML](diagrams/vehicle-registration/vehicle-registration.html) | [SVG](diagrams/vehicle-registration/vehicle-registration.svg) |
+| Índice de diagramas | [HTML](diagrams/index.html) | Seis archivos SVG versionados |
 
 Los HTML incluyen el diagrama y sus tablas sin librerías, fuentes ni scripts externos. GitHub muestra su código; descargarlos o clonar el repo permite abrirlos directamente en el navegador. Los SVG se previsualizan en GitHub.
 

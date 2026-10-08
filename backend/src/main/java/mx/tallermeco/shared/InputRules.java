@@ -56,21 +56,21 @@ public final class InputRules {
     public static String curp(String raw,LocalDate birth) {
         String value=identifier("curp",raw,18,false);
         if(value==null)return null;
-        if(!value.matches("[a-z][aeioux][a-z]{2}[0-9]{6}[hm](?:as|bc|bs|cc|cl|cm|cs|ch|df|dg|gt|gr|hg|jc|mc|mn|ms|nt|nl|oc|pl|qt|qr|sp|sl|sr|tc|ts|tl|vz|yn|zs|ne)[b-df-hj-np-tv-z]{3}[a-z0-9][0-9]")) fail("curp","CURP inválida: verifica sus 18 caracteres y estructura mexicana");
-        dateCode("curp",value.substring(4,10),birth,value.charAt(16)>='a'?2000:1900);
+        if(!value.toLowerCase(Locale.ROOT).matches("[a-z][aeioux][a-z]{2}[0-9]{6}[hm](?:as|bc|bs|cc|cl|cm|cs|ch|df|dg|gt|gr|hg|jc|mc|mn|ms|nt|nl|oc|pl|qt|qr|sp|sl|sr|tc|ts|tl|vz|yn|zs|ne)[b-df-hj-np-tv-z]{3}[a-z0-9][0-9]")) fail("curp","CURP inválida: verifica sus 18 caracteres y estructura mexicana");
+        dateCode("curp",value.substring(4,10),birth,Character.isLetter(value.charAt(16))?2000:1900);
         return value;
     }
     public static String rfc(String field,String raw,boolean required,LocalDate birth) {
         String value=identifier(field,raw,13,required);
         if(value==null)return null;
-        if(!value.matches("[a-zñ&]{3,4}[0-9]{6}[a-z0-9]{3}"))fail(field,"RFC inválido: usa 12 o 13 caracteres con estructura mexicana");
+        if(!value.toLowerCase(Locale.ROOT).matches("[a-zñ&]{3,4}[0-9]{6}[a-z0-9]{3}"))fail(field,"RFC inválido: usa 12 o 13 caracteres con estructura mexicana");
         dateCode(field,value.substring(value.length()-9,value.length()-3),birth,null);
         return value;
     }
     private static String identifier(String field,String raw,int max,boolean required) {
         if(raw==null || raw.isEmpty()) {if(required)fail(field,"Este campo es obligatorio");return null;}
         if(!raw.equals(raw.strip()) || raw.contains(" "))fail(field,"No se permiten espacios");
-        return text(field,raw,max,required);
+        String value=text(field,raw,max,required);return value==null?null:value.toUpperCase(Locale.ROOT);
     }
     private static void dateCode(String field,String value,LocalDate birth,Integer century) {
         try {

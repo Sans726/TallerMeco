@@ -20,7 +20,7 @@ public record Customer(
         String municipality,
         String state,
         String postalCode,
-        boolean active,
+        long statusId,String statusCode,String statusDescription,boolean allowsOperations,
         long version,
         String givenName,String paternalSurname,String maternalSurname,String curp,String rfc,String cellPhone
 ) {}
